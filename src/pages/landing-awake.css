@@ -37,7 +37,24 @@
   justify-content: space-between;
 }
 
-.landing-page .landing-header .landing-logo img { height: 32px; width: auto; }
+.landing-page .landing-header .landing-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--awake-dark);
+}
+.landing-page .landing-header .landing-logo .logo-mark svg {
+  height: 32px;
+  width: 32px;
+  display: block;
+}
+.landing-page .landing-header .landing-logo .logo-wordmark {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: inherit;
+}
 
 .landing-page .landing-nav-toggle {
   display: none;

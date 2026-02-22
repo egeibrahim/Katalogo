@@ -19,9 +19,9 @@ type PageMetaInput = {
 };
 
 const FALLBACKS: SiteMetaSettings = {
-  siteName: "Newcatalog",
+  siteName: "Katalogo",
   titleTemplate: "{title} | {site}",
-  defaultDescription: "Newcatalog ile ürün kataloğunu tasarla, yönet ve yayınla.",
+  defaultDescription: "Katalogo ile ürün kataloğunu tasarla, yönet ve yayınla.",
   defaultOgImageUrl: "",
 };
 

@@ -63,9 +63,9 @@ const DEFAULTS: ShippingSettingsDraft = {
 const SHIPPING_KEYS = Object.keys(DEFAULTS) as (keyof ShippingSettingsDraft)[];
 
 const SEO_DEFAULTS: SeoSettingsDraft = {
-  site_name: "Newcatalog",
+  site_name: "Katalogo",
   title_template: "{title} | {site}",
-  default_meta_description: "Design, manage and publish your product catalog with Newcatalog.",
+  default_meta_description: "Design, manage and publish your product catalog with Katalogo.",
   default_og_image_url: "",
 };
 

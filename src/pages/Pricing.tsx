@@ -3,12 +3,13 @@ import "./landing-awake.css";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { Logo } from "@/components/Logo";
 import { Check, ArrowRight, Menu, X } from "lucide-react";
 
 const AWAKE_BASE = "/awake";
 
 export default function Pricing() {
-  usePageMeta({ title: "Fiyatlandırma – Newcatalog" });
+  usePageMeta({ title: "Fiyatlandırma – Katalogo" });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
@@ -64,8 +65,8 @@ export default function Pricing() {
     <div className="landing-page" data-landing>
       <header className="landing-header">
         <div className="landing-header-inner">
-          <Link to="/" className="landing-logo" onClick={closeMobileMenu}>
-            <img src={`${AWAKE_BASE}/logos/logo-dark.svg`} alt="Newcatalog" />
+          <Link to="/" className="landing-logo" onClick={closeMobileMenu} aria-label="Katalogo">
+            <Logo asLink={false} />
           </Link>
           <button
             type="button"
@@ -137,7 +138,7 @@ export default function Pricing() {
           <div className="landing-footer-grid">
             <div>
               <h3>Hazır mısın?</h3>
-              <p className="landing-muted">Newcatalog ile bugün başla.</p>
+              <p className="landing-muted">Katalogo ile bugün başla.</p>
               <Link to="/auth" className="landing-link-blue landing-mt-3">
                 Ücretsiz başla
                 <ArrowRight className="h-4 w-4" aria-hidden />
@@ -152,7 +153,7 @@ export default function Pricing() {
               </ul>
             </div>
             <div>
-              <h3>Newcatalog</h3>
+              <h3>Katalogo</h3>
               <ul>
                 <li><Link to="/auth">Giriş</Link></li>
                 <li><Link to="/catalog/all">Katalog</Link></li>
@@ -160,7 +161,7 @@ export default function Pricing() {
             </div>
           </div>
           <p className="landing-copy">
-            © {new Date().getFullYear()} Newcatalog. Tüm hakları saklıdır.
+            © {new Date().getFullYear()} Katalogo. Tüm hakları saklıdır.
           </p>
         </div>
       </footer>

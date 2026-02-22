@@ -45,15 +45,15 @@ export function NewcatalogTopNav() {
       <div className="ru-promo">
         <div className="ru-max">
           <div className="flex h-8 items-center justify-center px-6 text-xs font-semibold">
-            Create by you, built with Newcatalog
+            Create by you, built with Katalogo
           </div>
         </div>
       </div>
 
       <div className="ru-max">
         <div className="flex h-14 items-center justify-between gap-4 px-6">
-          <Link to="/catalog/all" className="ru-logo" aria-label="Newcatalog">
-            Newcatalog
+          <Link to="/catalog/all" className="ru-logo" aria-label="Katalogo">
+            Katalogo
           </Link>
 
           <nav className="hidden items-center gap-6 text-sm font-semibold md:flex" aria-label="Primary">

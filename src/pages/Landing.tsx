@@ -3,18 +3,19 @@ import "./landing-awake.css";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { Logo } from "@/components/Logo";
 import { ArrowRight, Sparkles, Palette, LayoutGrid, FileText, BarChart3, Menu, X } from "lucide-react";
 
 const AWAKE_BASE = "/awake";
 
 const FAQ_ITEMS = [
-  { q: "Newcatalog ne sunar?", a: "Ürün kataloğu yönetimi, koleksiyonlar, yerleşik ürün tasarımcısı ve marka sayfası ile teklif talepleri. Ücretsiz planla başlayabilirsin." },
+  { q: "Katalogo ne sunar?", a: "Ürün kataloğu yönetimi, koleksiyonlar, yerleşik ürün tasarımcısı ve marka sayfası ile teklif talepleri. Ücretsiz planla başlayabilirsin." },
   { q: "Nasıl başlarım?", a: "Giriş yap veya ücretsiz hesap oluştur, ürünlerini ekle, koleksiyonları kur. Marka sayfan ve tasarımcı tek panelden erişilebilir." },
   { q: "Fiyatlandırma nasıl?", a: "Kişisel plan ücretsiz. Marka ve Premium (özel alan adı) planları yakında. Fiyatlandırma sayfasından güncel bilgi alabilirsin." },
 ];
 
 export default function Landing() {
-  usePageMeta({ title: "Newcatalog – Ürün kataloğunu tasarla ve yayınla" });
+  usePageMeta({ title: "Katalogo – Ürün kataloğunu tasarla ve yayınla" });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
@@ -53,8 +54,8 @@ export default function Landing() {
       {/* Header – Awake: fixed, logo img, pill nav + mobile hamburger */}
       <header className="landing-header">
         <div className="landing-header-inner">
-          <Link to="/" className="landing-logo" onClick={closeMobileMenu}>
-            <img src={`${AWAKE_BASE}/logos/logo-dark.svg`} alt="Newcatalog" />
+          <Link to="/" className="landing-logo" onClick={closeMobileMenu} aria-label="Katalogo">
+            <Logo asLink={false} />
           </Link>
           <button
             type="button"
@@ -85,7 +86,7 @@ export default function Landing() {
             Cesur markaları <em className="font-instrument">akıllı tasarımla</em> inşa ediyoruz
           </h1>
           <p className="landing-hero-p">
-            Newcatalog ile küçük işletmeler ürün kataloğunu tek yerden yönetir; stratejiden yayına kadar rehberlik ederiz.
+            Katalogo ile küçük işletmeler ürün kataloğunu tek yerden yönetir; stratejiden yayına kadar rehberlik ederiz.
           </p>
           <div className="landing-btn-wrap">
             <Link to="/auth" className="landing-btn-primary">
@@ -223,7 +224,7 @@ export default function Landing() {
           <h2 className="landing-title-center">Müşterilerimiz ne diyor?</h2>
           <div className="landing-quote-card" style={{ maxWidth: 640, margin: "0 auto" }}>
             <p>
-              "Newcatalog'un uzmanlığı vizyonumu yaratıcılık, hassasiyet ve hedeflerimi anlayarak başarıya taşıdı."
+              "Katalogo'nun uzmanlığı vizyonumu yaratıcılık, hassasiyet ve hedeflerimi anlayarak başarıya taşıdı."
             </p>
             <footer>
               <cite>
@@ -273,7 +274,7 @@ export default function Landing() {
           <div className="landing-footer-grid">
             <div>
               <h3>Hazır mısın?</h3>
-              <p className="landing-muted">Newcatalog ile bugün başla.</p>
+              <p className="landing-muted">Katalogo ile bugün başla.</p>
               <Link to="/auth" className="landing-link-blue landing-mt-3">
                 Ücretsiz başla
                 <ArrowRight className="h-4 w-4" aria-hidden />
@@ -288,7 +289,7 @@ export default function Landing() {
               </ul>
             </div>
             <div>
-              <h3>Newcatalog</h3>
+              <h3>Katalogo</h3>
               <ul>
                 <li><Link to="/auth">Giriş</Link></li>
                 <li><Link to="/catalog/all">Katalog</Link></li>
@@ -296,7 +297,7 @@ export default function Landing() {
             </div>
           </div>
           <p className="landing-copy">
-            © {new Date().getFullYear()} Newcatalog. Tüm hakları saklıdır.
+            © {new Date().getFullYear()} Katalogo. Tüm hakları saklıdır.
           </p>
         </div>
       </footer>
