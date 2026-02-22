@@ -1,0 +1,4 @@
+id;name;description;category;is_active;created_at;updated_at;source_provider;source_url;source_handle;thumbnail_url;price_from;badge;product_code;category_id;slug;meta_title;meta_description;cover_image_url;sort_order
+e060dd4b-522e-47e3-b26d-3f5de415e1df;Oversize T-Shirt;<p>Oversize</p>;;false;2026-01-21 09:52:17.932509+00;2026-01-21 09:53:25.324249+00;;;;;7;;T002;8021d321-4bd2-44ef-8705-6fcad8885928;oversize-t-shirt;;;;0
+511c88fb-7b6e-47a1-90ce-278730f453f8;Test;;;false;2026-01-21 10:38:33.838839+00;2026-01-21 10:38:39.760275+00;;;;;1;;test;8021d321-4bd2-44ef-8705-6fcad8885928;test;;;;0
+c1edc34a-f3d4-4575-8445-c2a809305f09;Black T-Shirt;<p>%100 Pamuk T-Shirt</p>;;true;2026-01-21 08:42:29.404161+00;2026-01-21 11:17:40.816606+00;;;;;5;;BT001;8021d321-4bd2-44ef-8705-6fcad8885928;black-t-shirt;;;https://xubsbvifojimquwdgyrw.supabase.co/storage/v1/object/public/product-mockups/products/c1edc34a-f3d4-4575-8445-c2a809305f09/cover/1768985180528-siyah1.png;0

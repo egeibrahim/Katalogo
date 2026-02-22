@@ -1,0 +1,4 @@
+id;product_id;front_image_url;back_image_url;side_image_url;print_area_x;print_area_y;print_area_width;print_area_height;export_resolution;created_at;updated_at
+2f8dccfd-f79a-4eb1-a73e-30411d374c29;c1edc34a-f3d4-4575-8445-c2a809305f09;https://xubsbvifojimquwdgyrw.supabase.co/storage/v1/object/public/product-mockups/products/c1edc34a-f3d4-4575-8445-c2a809305f09/front/1768984998257-siyah1.png;https://xubsbvifojimquwdgyrw.supabase.co/storage/v1/object/public/product-mockups/products/c1edc34a-f3d4-4575-8445-c2a809305f09/back/1768985006289-siyah-1.png;;;;;;;2026-01-21 08:43:04.446302+00;2026-01-21 08:46:28.085449+00
+b11109dc-9804-46ae-bc22-991d07569cb0;e060dd4b-522e-47e3-b26d-3f5de415e1df;;;;;;;;;2026-01-21 09:52:18.404208+00;2026-01-21 09:53:25.61661+00
+5142a367-91a9-4699-81e7-a2dd19e8b005;511c88fb-7b6e-47a1-90ce-278730f453f8;;;;;;;;;2026-01-21 10:38:34.204014+00;2026-01-21 10:38:39.993403+00

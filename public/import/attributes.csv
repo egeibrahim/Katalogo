@@ -1,0 +1,3 @@
+id;name;key;type;is_active;created_at;updated_at;category_id
+96beda13-2f55-4cbc-bce7-44ce4cd3917c;Size;EU;multiselect;true;2026-01-21 09:54:02.2293+00;2026-01-21 09:54:02.2293+00;
+1c9b8c8b-c2ed-490d-a09d-ef9d1bfad7e2;Color;color;multiselect;true;2026-01-21 11:14:22.09523+00;2026-01-21 11:14:22.09523+00;

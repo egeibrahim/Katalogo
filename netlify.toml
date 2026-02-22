@@ -1,0 +1,5 @@
+# SPA: Tüm route'lar index.html dönsün, sayfa yeniden yüklenmesin
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,0 +1,97 @@
+import { useMemo } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/useAuth";
+import { Search } from "lucide-react";
+
+const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
+  { prefix: "/admin/dashboard", title: "Dashboard", subtitle: "Overview & quick stats" },
+  { prefix: "/admin/products", title: "Products", subtitle: "Manage your catalog" },
+  { prefix: "/admin/categories", title: "Categories", subtitle: "Organize your catalog" },
+  { prefix: "/admin/filters", title: "Filters", subtitle: "Filters & product specs" },
+  { prefix: "/admin/media", title: "Media", subtitle: "Reusable assets library" },
+  { prefix: "/admin/users", title: "Users", subtitle: "Team & permissions" },
+  { prefix: "/admin/import", title: "Import", subtitle: "Load data from CSV" },
+  { prefix: "/admin/export", title: "Export", subtitle: "Toplu CSV → ZIP" },
+  { prefix: "/admin/settings", title: "Settings", subtitle: "Workspace preferences" },
+];
+
+export function AdminTopbar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { session, role, isAdmin, signOut } = useAuth();
+  const meta = useMemo(() => {
+    const hit = TITLES.find((t) => location.pathname.startsWith(t.prefix));
+    return hit ?? { title: "Admin", subtitle: "" };
+  }, [location.pathname]);
+
+  const email = session?.user?.email ?? "";
+  const initials = (email || "U").slice(0, 2).toUpperCase();
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
+      <div className="flex h-14 items-center gap-3 px-4">
+        {/* IMPORTANT: single global trigger lives here */}
+        <SidebarTrigger />
+
+        <Separator orientation="vertical" className="h-6" />
+
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">{meta.title}</p>
+          <p className="truncate text-xs text-muted-foreground">{meta.subtitle}</p>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          <div className="relative hidden md:block">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input className="h-9 w-[280px] pl-8" placeholder="Search…" aria-label="Search" />
+          </div>
+
+          {!session ? (
+            <Button asChild variant="outline" size="sm" className="h-9">
+              <Link to="/auth">Giriş</Link>
+            </Button>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                  <span className="max-w-[160px] truncate">{email}</span>
+                  <Badge variant={isAdmin ? "default" : "secondary"}>{role ?? "user"}</Badge>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="truncate">{email}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={async () => {
+                    await signOut();
+                    navigate("/", { replace: true });
+                  }}
+                >
+                  Çıkış Yap
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
