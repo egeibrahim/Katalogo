@@ -9,7 +9,7 @@ export default function AppLayout() {
   useDefaultMeta();
   const isAdminArea = location.pathname.startsWith("/admin");
   const isBusinessArea = location.pathname.startsWith("/business");
-  const isPublicLanding = location.pathname === "/" || location.pathname === "/pricing";
+  const isPublicLanding = location.pathname === "/";
   const hidePagesBar = location.pathname === "/" || location.pathname === "/auth";
   const isHomeOrAuth = location.pathname === "/" || location.pathname === "/auth";
   const isNewcatalogStorefront =

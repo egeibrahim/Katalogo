@@ -71,4 +71,6 @@ Varsayılan olarak uygulama `window.location.origin` kullanır; özel domain’e
 - [ ] Supabase → Authentication → URL Configuration’da **Site URL** ve **Redirect URLs** özel domain ile güncellendi.
 - [ ] Tarayıcıda `https://yourdomain.com` açılıyor ve Google ile giriş test edildi.
 
+**katalogo.co'da giriş çalışmıyorsa** adım adım: [GIRIS_KATALOGO_CO.md](./GIRIS_KATALOGO_CO.md)
+
 Sorun olursa: Tarayıcı konsolunda veya Network sekmesinde redirect/OAuth hatalarını kontrol edin; genelde Supabase Redirect URLs’te eksik veya yanlış domain kaynaklıdır.

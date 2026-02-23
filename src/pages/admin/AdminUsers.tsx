@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 export default function AdminUsers() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "user">("admin");
-  const [plan, setPlan] = useState<"individual" | "corporate" | "custom_request">("individual");
+  const [plan, setPlan] = useState<"free" | "individual" | "brand" | "corporate" | "custom_request">("free");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit = useMemo(() => {
@@ -123,7 +123,9 @@ export default function AdminUsers() {
                   <SelectValue placeholder="Select plan" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="free">free</SelectItem>
                   <SelectItem value="individual">individual</SelectItem>
+                  <SelectItem value="brand">brand</SelectItem>
                   <SelectItem value="corporate">corporate</SelectItem>
                   <SelectItem value="custom_request">custom_request</SelectItem>
                 </SelectContent>
@@ -144,7 +146,7 @@ export default function AdminUsers() {
                 onClick={() => {
                   setEmail("");
                   setRole("admin");
-                  setPlan("individual");
+                  setPlan("free");
                 }}
                 disabled={isSubmitting}
               >

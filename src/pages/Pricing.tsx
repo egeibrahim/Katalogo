@@ -1,59 +1,68 @@
 import "./landing.css";
 import "./landing-awake.css";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { Logo } from "@/components/Logo";
-import { Check, ArrowRight, Menu, X } from "lucide-react";
-
-const AWAKE_BASE = "/awake";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { Check, ArrowRight } from "lucide-react";
 
 export default function Pricing() {
-  usePageMeta({ title: "Fiyatlandırma – Katalogo" });
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const closeMobileMenu = () => setMobileMenuOpen(false);
+  usePageMeta({ title: "Fiyat – Katalogo" });
+  const { t } = useI18n();
 
   const plans = [
     {
-      name: "Kişisel",
-      description: "Bireysel kullanım, ücretsiz başlangıç.",
+      name: "Free",
+      description: "Günde 2 indirme, sadece Design Now.",
       price: "Ücretsiz",
       period: "",
       features: [
-        "Sınırsız ürün",
-        "Koleksiyonlar",
-        "Tasarımcı erişimi",
-        "Temel dışa aktarma",
+        "Design Now ile tasarım",
+        "Günde 2 mockup indirme",
+        "Katalog görüntüleme",
       ],
       cta: "Ücretsiz başla",
       href: "/auth",
       highlighted: false,
     },
     {
+      name: "Kişisel",
+      description: "Sınırsız mockup, sadece Design Now.",
+      price: "$7",
+      period: "/ay",
+      features: [
+        "Free plan özellikleri",
+        "Sınırsız mockup indirme",
+        "Tasarımcı erişimi",
+      ],
+      cta: "Başla",
+      href: "/auth",
+      highlighted: false,
+    },
+    {
       name: "Marka",
-      description: "Marka sayfası ve teklif yönetimi.",
-      price: "Yakında",
-      period: "",
+      description: "Kendi kataloğu ve teklif yönetimi.",
+      price: "$20",
+      period: "/ay",
       features: [
         "Kişisel plan özellikleri",
         "Marka sayfası (özel URL)",
-        "Teklif talepleri",
-        "Müşteri yönetimi",
+        "Sepet ve teklif talepleri",
+        "Kendi kataloğunu oluşturma",
       ],
-      cta: "Bilgi al",
+      cta: "Marka planı",
       href: "/auth",
       highlighted: true,
     },
     {
-      name: "Premium",
-      description: "Özel alan adı ve gelişmiş özellikler.",
-      price: "Yakında",
+      name: "Kurumsal",
+      description: "Özel alan adı ve öncelikli destek.",
+      price: "Teklif",
       period: "",
       features: [
         "Marka plan özellikleri",
         "Özel alan adı (custom domain)",
         "Öncelikli destek",
-        "Gelişmiş analitik",
+        "Gelişmiş ihtiyaçlar için iletişim",
       ],
       cta: "İletişime geç",
       href: "/auth",
@@ -63,40 +72,13 @@ export default function Pricing() {
 
   return (
     <div className="landing-page" data-landing>
-      <header className="landing-header">
-        <div className="landing-header-inner">
-          <Link to="/" className="landing-logo" onClick={closeMobileMenu} aria-label="Katalogo">
-            <Logo asLink={false} />
-          </Link>
-          <button
-            type="button"
-            className="landing-nav-toggle"
-            onClick={() => setMobileMenuOpen((v) => !v)}
-            aria-expanded={mobileMenuOpen}
-            aria-label="Menü"
-          >
-            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
-          <nav className={`landing-nav ${mobileMenuOpen ? "landing-nav-open" : ""}`}>
-            <Link to="/#aboutus" onClick={closeMobileMenu}>Hakkımızda</Link>
-            <Link to="/features" onClick={closeMobileMenu}>Özellikler</Link>
-            <Link to="/#work" onClick={closeMobileMenu}>İşler</Link>
-            <Link to="/pricing" onClick={closeMobileMenu}>Fiyat</Link>
-            <Link to="/auth" className="landing-cta" onClick={closeMobileMenu}>Giriş</Link>
-          </nav>
-        </div>
-        {mobileMenuOpen && (
-          <div className="landing-nav-overlay" onClick={closeMobileMenu} aria-hidden />
-        )}
-      </header>
-
-      <main className="landing-section" style={{ paddingTop: "120px" }}>
+      <section className="landing-section ru-max w-full" style={{ paddingTop: "2rem", paddingBottom: "4rem" }}>
         <div className="landing-section-inner">
           <h1 className="landing-title-center" style={{ marginBottom: "0.5rem" }}>
-            İhtiyacına uygun planı seç
+            {t("pages.pricing.title")}
           </h1>
           <p className="landing-muted landing-text-center" style={{ maxWidth: 480, margin: "0 auto 3rem" }}>
-            Ücretsiz planla hemen başla. Marka ve Premium planları yakında.
+            {t("pages.pricing.subtitle")}
           </p>
 
           <div className="landing-pricing-grid">
@@ -131,40 +113,7 @@ export default function Pricing() {
             ))}
           </div>
         </div>
-      </main>
-
-      <footer className="landing-footer">
-        <div className="landing-footer-inner">
-          <div className="landing-footer-grid">
-            <div>
-              <h3>Hazır mısın?</h3>
-              <p className="landing-muted">Katalogo ile bugün başla.</p>
-              <Link to="/auth" className="landing-link-blue landing-mt-3">
-                Ücretsiz başla
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-            </div>
-            <div>
-              <h3>Ürün</h3>
-              <ul>
-                <li><Link to="/features">Özellikler</Link></li>
-                <li><Link to="/designer">Tasarımcı</Link></li>
-                <li><Link to="/pricing">Fiyatlandırma</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Katalogo</h3>
-              <ul>
-                <li><Link to="/auth">Giriş</Link></li>
-                <li><Link to="/catalog/all">Katalog</Link></li>
-              </ul>
-            </div>
-          </div>
-          <p className="landing-copy">
-            © {new Date().getFullYear()} Katalogo. Tüm hakları saklıdır.
-          </p>
-        </div>
-      </footer>
+      </section>
     </div>
   );
 }

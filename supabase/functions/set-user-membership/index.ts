@@ -7,10 +7,11 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 } as const;
 
+const ALLOWED_PLANS = ["free", "individual", "brand", "corporate", "custom_request"] as const;
 type Body = {
   user_id?: string;
   email?: string;
-  plan?: "individual" | "corporate" | "custom_request";
+  plan?: (typeof ALLOWED_PLANS)[number];
   status?: string;
 };
 
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
     const plan = body.plan;
     const status = (body.status ?? "active").trim() || "active";
 
-    if ((!targetUserIdRaw && !targetEmail) || (plan !== "individual" && plan !== "corporate" && plan !== "custom_request")) {
+    if ((!targetUserIdRaw && !targetEmail) || !plan || !ALLOWED_PLANS.includes(plan)) {
       return new Response(JSON.stringify({ error: "Invalid payload" }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },

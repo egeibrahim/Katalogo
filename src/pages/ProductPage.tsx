@@ -19,7 +19,10 @@ import {
   usePublicViewColorMockup,
 } from "@/hooks/usePublicProduct";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserMembership } from "@/hooks/useUserMembership";
 import { useCart } from "@/contexts/CartContext";
+import { canUseCart } from "@/lib/planFeatures";
 import { toast } from "sonner";
 import { getSignedImageUrl } from "@/lib/storage";
 
@@ -126,6 +129,9 @@ export default function ProductPage() {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedView, setSelectedView] = useState<"front" | "back">("front");
   const [addToCartQty, setAddToCartQty] = useState(1);
+  const { user } = useAuth();
+  const { data: membership } = useUserMembership(user?.id ?? null);
+  const showCart = canUseCart(membership?.plan);
   const { addItem: addToCart, items: cartItems } = useCart();
 
   const attrs = (attrsRow?.data ?? {}) as Record<string, unknown>;
@@ -591,7 +597,7 @@ export default function ProductPage() {
             onSelectedSizeChange={setSelectedSize}
             quantity={addToCartQty}
             onQuantityChange={setAddToCartQty}
-            onAddToCart={handleAddToCart}
+            onAddToCart={showCart ? handleAddToCart : undefined}
             addToCartRef={configuratorAddToCartRef}
             maxQuantity={remainingStock}
             unitPriceTiers={(unitPriceTiers ?? []).map((t) => ({

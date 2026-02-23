@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { useDesignHistory } from "@/hooks/useDesignHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserMembership } from "@/hooks/useUserMembership";
-import { useAppSettings } from "@/hooks/useAppSettings";
+import { getExportDailyLimit, canUseCart } from "@/lib/planFeatures";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
 import { getDefaultCanvasArea, getFallbackCanvasArea } from "@/lib/productTemplates";
@@ -59,12 +59,8 @@ export function ProductDesigner() {
   }, [cartItems]);
 
   const { data: membership } = useUserMembership(user?.id ?? null);
-  const { data: settings } = useAppSettings(["individual_export_daily_limit"]);
-  const exportDailyLimit = useMemo(() => {
-    const raw = settings?.individual_export_daily_limit;
-    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-    return Number.isFinite(parsed) ? parsed : 3;
-  }, [settings]);
+  const exportDailyLimit = useMemo(() => getExportDailyLimit(membership?.plan), [membership?.plan]);
+  const showCartAction = canUseCart(membership?.plan);
 
   const [searchParams] = useSearchParams();
   const requestedProductId = searchParams.get("productId") || "";
@@ -840,7 +836,7 @@ export function ProductDesigner() {
       return;
     }
 
-    if (!isAdmin && (membership?.plan ?? "individual") === "individual") {
+    if (!isAdmin && exportDailyLimit < 999) {
       const { data: ok, error } = await supabase.rpc("can_consume_export", {
         _user_id: user.id,
         _limit: exportDailyLimit,
@@ -1558,18 +1554,22 @@ export function ProductDesigner() {
                 <Save className="w-4 h-4" />
                 Save
               </Button>
-              <Button
-                size="sm"
-                variant="default"
-                className="rounded-lg h-9"
-                disabled={!currentProductId}
-                title={!currentProductId ? "Önce bir ürün seçin" : "Tasarımı sepete ekle"}
-                onClick={() => handleAddToCartFromDesigner()}
-              >
-                <ShoppingCart className="w-4 h-4" />
-                Sepete ekle
-              </Button>
-              <div className="w-px h-7 bg-border ml-1" />
+              {showCartAction && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="rounded-lg h-9"
+                    disabled={!currentProductId}
+                    title={!currentProductId ? "Önce bir ürün seçin" : "Tasarımı sepete ekle"}
+                    onClick={() => handleAddToCartFromDesigner()}
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    Sepete ekle
+                  </Button>
+                  <div className="w-px h-7 bg-border ml-1" />
+                </>
+              )}
               <UserMenu />
             </div>
           </div>

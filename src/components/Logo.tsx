@@ -1,13 +1,14 @@
 import { Link } from "react-router-dom";
 
-const logoMarkPath =
-  "M22.1301 0H9.86989L0 9.86987V22.1301L9.86989 32H22.1301L32 22.1301V9.86987L22.1301 0ZM11.5663 22.2843L5.24339 15.9614L11.5663 9.63855C13.9566 7.24819 17.8892 7.24819 20.2795 9.63855L26.6024 15.9614L20.2795 22.2843C17.8892 24.6747 14.0337 24.6747 11.5663 22.2843Z";
-
 const logoContent = (
   <>
     <span className="logo-mark" aria-hidden>
-      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d={logoMarkPath} fill="currentColor" />
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+        <rect className="logo-mark-bg" width="32" height="32" rx="8" />
+        <path
+          className="logo-mark-fg"
+          d="M10 6v20h2.5v-8L18 26h2.5l-5.5-7 5.5-8h-2.5l-4 5.5V6H10z"
+        />
       </svg>
     </span>
     <span className="logo-wordmark">Katalogo</span>

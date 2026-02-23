@@ -285,7 +285,7 @@ export default function Landing() {
               <ul>
                 <li><Link to="/features">Özellikler</Link></li>
                 <li><Link to="/designer">Tasarımcı</Link></li>
-                <li><Link to="/pricing">Fiyatlandırma</Link></li>
+                <li><Link to="/pricing">Fiyat</Link></li>
               </ul>
             </div>
             <div>

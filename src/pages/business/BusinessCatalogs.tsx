@@ -8,7 +8,9 @@ import { Link } from "react-router-dom";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserMembership } from "@/hooks/useUserMembership";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { canCreateOwnCatalog } from "@/lib/planFeatures";
 import { slugify } from "@/lib/slug";
 import { toast } from "@/hooks/use-toast";
 
@@ -80,7 +82,9 @@ export default function BusinessCatalogs() {
 
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { data: membership } = useUserMembership(user?.id ?? null);
   const userId = user?.id ?? null;
+  const allowedCatalog = canCreateOwnCatalog(membership?.plan);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Catalog | null>(null);
@@ -183,6 +187,26 @@ export default function BusinessCatalogs() {
     });
     setDialogOpen(true);
   };
+
+  if (userId && !allowedCatalog) {
+    return (
+      <div className="p-4 md:p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Katalog oluşturma</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Kendi kataloğunuzu oluşturmak Marka veya Kurumsal planında sunulur.
+            </p>
+            <Button asChild>
+              <Link to="/pricing">Fiyatlandırmaya git</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6">

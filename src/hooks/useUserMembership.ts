@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { MembershipPlan } from "@/lib/planFeatures";
 
-export type MembershipPlan = "individual" | "corporate" | "custom_request";
+export type { MembershipPlan };
 
 export type UserMembership = {
   plan: MembershipPlan;
@@ -13,7 +14,7 @@ export function useUserMembership(userId: string | null) {
     queryKey: ["user_membership", userId ?? "anon"],
     enabled: !!userId,
     queryFn: async (): Promise<UserMembership> => {
-      if (!userId) return { plan: "individual", status: "active" };
+      if (!userId) return { plan: "free", status: "active" };
 
       const { data, error } = await supabase
         .from("user_memberships")
@@ -21,11 +22,13 @@ export function useUserMembership(userId: string | null) {
         .eq("user_id", userId)
         .maybeSingle();
 
-      // If missing row or blocked, default to individual.
-      if (error) return { plan: "individual", status: "active" };
-      if (!data) return { plan: "individual", status: "active" };
+      // Kayıt yok veya hata: free plan varsayılan.
+      if (error) return { plan: "free", status: "active" };
+      if (!data) return { plan: "free", status: "active" };
+      const plan = data.plan as string;
+      const allowed: MembershipPlan[] = ["free", "individual", "brand", "corporate", "custom_request"];
       return {
-        plan: (data.plan as MembershipPlan) ?? "individual",
+        plan: (allowed.includes(plan) ? plan : "free") as MembershipPlan,
         status: data.status ?? "active",
       };
     },

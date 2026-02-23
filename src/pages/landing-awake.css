@@ -40,20 +40,29 @@
 .landing-page .landing-header .landing-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   text-decoration: none;
   color: var(--awake-dark);
 }
 .landing-page .landing-header .landing-logo .logo-mark svg {
-  height: 32px;
-  width: 32px;
+  height: 36px;
+  width: 36px;
   display: block;
+  flex-shrink: 0;
+}
+.landing-page .landing-header .landing-logo .logo-mark-bg {
+  fill: var(--awake-primary, #4928FD);
+}
+.landing-page .landing-header .landing-logo .logo-mark-fg {
+  fill: var(--awake-white, #fff);
 }
 .landing-page .landing-header .landing-logo .logo-wordmark {
-  font-size: 1.25rem;
+  font-family: "Inter Tight", sans-serif;
+  font-size: 1.35rem;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   color: inherit;
+  line-height: 1.2;
 }
 
 .landing-page .landing-nav-toggle {

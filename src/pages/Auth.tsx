@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { isSupabaseConfigured } from "@/integrations/supabase/client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,8 +35,8 @@ function authErrorMessage(error: { message?: string } | null, isSignUp = false):
     return "Bu e‑posta adresi zaten kayıtlı. Giriş sekmesinden giriş yapın veya farklı bir e‑posta kullanın.";
   if (msg.includes("password") && msg.includes("weak"))
     return "Şifre yeterince güçlü değil. En az 6 karakter ve mümkünse harf + rakam kullanın.";
-  if (msg.includes("network") || msg.includes("fetch"))
-    return "Bağlantı hatası. İnternet bağlantınızı ve Supabase ayarlarınızı kontrol edin.";
+  if (msg.includes("network") || msg.includes("fetch") || msg.includes("failed to fetch"))
+    return "Bağlantı hatası. Kontrol edin: (1) İnternet bağlantısı (2) .env veya Vercel ortam değişkenlerinde VITE_SUPABASE_URL ve VITE_SUPABASE_PUBLISHABLE_KEY tanımlı mı? (3) Supabase projesi aktif mi (pause edilmemiş olmalı).";
   return error.message;
 }
 
@@ -126,7 +127,12 @@ export default function Auth() {
 
   return (
     <div className="min-h-[calc(100dvh-3.5rem)] px-4 py-12">
-      <div className="mx-auto w-full max-w-md">
+      <div className="mx-auto w-full max-w-md space-y-4">
+        {!isSupabaseConfigured && (
+          <div className="rounded-lg border border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+            <strong>Supabase ayarları eksik.</strong> Giriş yapabilmek için proje kökünde <code className="rounded bg-amber-100 dark:bg-amber-900/50 px-1">.env</code> dosyasında <code className="rounded bg-amber-100 dark:bg-amber-900/50 px-1">VITE_SUPABASE_URL</code> ve <code className="rounded bg-amber-100 dark:bg-amber-900/50 px-1">VITE_SUPABASE_PUBLISHABLE_KEY</code> tanımlayın (Supabase Dashboard → Project Settings → API). Canlı sitede ise Vercel → Project → Settings → Environment Variables.
+          </div>
+        )}
         <Card>
           <CardHeader>
             <CardTitle>Yönetim Girişi</CardTitle>

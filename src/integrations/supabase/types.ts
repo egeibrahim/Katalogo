@@ -1350,7 +1350,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user" | "business"
       attribute_type: "text" | "number" | "select" | "multiselect"
-      membership_plan: "individual" | "corporate" | "custom_request"
+      membership_plan: "free" | "individual" | "brand" | "corporate" | "custom_request"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1480,7 +1480,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user", "business"],
       attribute_type: ["text", "number", "select", "multiselect"],
-      membership_plan: ["individual", "corporate", "custom_request"],
+      membership_plan: ["free", "individual", "brand", "corporate", "custom_request"],
     },
   },
 } as const

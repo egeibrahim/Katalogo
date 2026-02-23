@@ -1,20 +1,7 @@
 -- Ürün oluşturma yetkisi: admin ve business (marka) hesaplara tanımlanır.
--- app_role enum'a 'business' eklenir; products RLS ile hem admin hem business insert/update/delete yapabilir.
+-- 'business' app_role değeri 20260221135500_app_role_business.sql ile eklenir (aynı tx'te kullanılamaz).
 
--- 1) app_role enum'a 'business' değeri (yoksa ekle)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_enum e
-    JOIN pg_type t ON e.enumtypid = t.oid
-    WHERE t.typname = 'app_role' AND e.enumlabel = 'business'
-  ) THEN
-    ALTER TYPE public.app_role ADD VALUE 'business';
-  END IF;
-END
-$$;
-
--- 2) products tablosu RLS: mevcut admin-only policy'leri kaldır, admin + business / owner kuralları ekle
+-- 1) products tablosu RLS: mevcut admin-only policy'leri kaldır, admin + business / owner kuralları ekle
 DROP POLICY IF EXISTS "Admins can insert products" ON public.products;
 DROP POLICY IF EXISTS "Admins can update products" ON public.products;
 DROP POLICY IF EXISTS "Admins can delete products" ON public.products;
@@ -56,7 +43,7 @@ USING (
   OR owner_user_id = auth.uid()
 );
 
--- 3) product_gallery_images: business kendi ürünlerine galeri ekleyebilir (kopyalama vb.)
+-- 2) product_gallery_images: business kendi ürünlerine galeri ekleyebilir (kopyalama vb.)
 DROP POLICY IF EXISTS "Admins can insert product gallery images" ON public.product_gallery_images;
 CREATE POLICY "Admins or business can insert product gallery images"
 ON public.product_gallery_images
@@ -95,7 +82,7 @@ USING (
   OR EXISTS (SELECT 1 FROM public.products p WHERE p.id = product_id AND p.owner_user_id = auth.uid())
 );
 
--- 4) update_product_gallery_order RPC: admin veya ürün sahibi (business) çağırabilir. Parametre sırası (p_orders, p_product_id) schema cache ile uyumlu.
+-- 3) update_product_gallery_order RPC: admin veya ürün sahibi (business) çağırabilir. Parametre sırası (p_orders, p_product_id) schema cache ile uyumlu.
 CREATE OR REPLACE FUNCTION public.update_product_gallery_order(
   p_orders jsonb,
   p_product_id uuid

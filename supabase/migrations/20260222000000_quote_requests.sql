@@ -16,12 +16,14 @@ COMMENT ON TABLE public.quote_requests IS 'Teklif iste formundan gönderilen tal
 -- Anonim ve giriş yapmış kullanıcılar teklif gönderebilsin (sadece insert)
 ALTER TABLE public.quote_requests ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "quote_requests_insert_anon" ON public.quote_requests;
 CREATE POLICY "quote_requests_insert_anon"
   ON public.quote_requests FOR INSERT
   TO anon, authenticated
   WITH CHECK (true);
 
 -- Sadece admin okuyabilsin (liste/detay için ayrı policy gerekebilir)
+DROP POLICY IF EXISTS "quote_requests_select_admin" ON public.quote_requests;
 CREATE POLICY "quote_requests_select_admin"
   ON public.quote_requests FOR SELECT
   TO authenticated

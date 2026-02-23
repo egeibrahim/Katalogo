@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserMembership } from "@/hooks/useUserMembership";
+import { canUseCart } from "@/lib/planFeatures";
 import { usePublicProductAttributes, usePublicProductSizes } from "@/hooks/usePublicProduct";
 import { getSignedImageUrl } from "@/lib/storage";
 import { supabase } from "@/integrations/supabase/client";
@@ -250,6 +253,9 @@ function CartItemRow({
 
 export default function CartPage() {
   usePageMeta({ title: "Sepet", noIndex: true });
+  const { user } = useAuth();
+  const { data: membership } = useUserMembership(user?.id ?? null);
+  const allowedCart = canUseCart(membership?.plan);
   const { items, updateQuantity, updateQuantityBySize, removeItem, totalCount } = useCart();
   const [quoteFormOpen, setQuoteFormOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -274,6 +280,21 @@ export default function CartPage() {
     setSelectedIds(new Set());
     toast.success("Seçilen ürünler sepetten kaldırıldı.");
   };
+
+  if (user && !allowedCart) {
+    return (
+      <NewcatalogChrome activeCategory="All">
+        <div className="ru-max w-full py-12 px-4 text-center">
+          <p className="text-muted-foreground mb-4">
+            Sepet ve teklif özelliği Marka veya Kurumsal planında sunulur.
+          </p>
+          <Link to="/pricing" className="ru-pill">
+            Fiyatlandırmaya git
+          </Link>
+        </div>
+      </NewcatalogChrome>
+    );
+  }
 
   return (
     <NewcatalogChrome activeCategory="All">
