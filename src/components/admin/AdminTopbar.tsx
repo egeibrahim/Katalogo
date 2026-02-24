@@ -16,6 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserMembership } from "@/hooks/useUserMembership";
+import { getPlanDisplayName } from "@/lib/planFeatures";
 import { Search } from "lucide-react";
 
 const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
@@ -34,6 +36,7 @@ export function AdminTopbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { session, role, isAdmin, signOut } = useAuth();
+  const { data: membership } = useUserMembership(session?.user?.id ?? null);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -82,11 +85,15 @@ export function AdminTopbar() {
                     <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
                   <span className="max-w-[160px] truncate">{email}</span>
-                  <Badge variant={isAdmin ? "default" : "secondary"}>{role ?? "user"}</Badge>
+                  <Badge variant="outline" className="font-normal">{getPlanDisplayName(membership?.plan)}</Badge>
+                  {isAdmin && <Badge variant="default">{role ?? "admin"}</Badge>}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="truncate">{email}</DropdownMenuLabel>
+                <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                  {getPlanDisplayName(membership?.plan)}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={async () => {

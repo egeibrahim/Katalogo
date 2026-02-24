@@ -21,7 +21,17 @@ export default function Pricing() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        navigate("/auth");
+        // Auth sayfası state kaybederse de checkout tetiklensin diye yedekle
+        try {
+          sessionStorage.setItem(
+            "auth_pending_checkout",
+            JSON.stringify({ plan: planId, interval: billingPeriod }),
+          );
+        } catch {
+          /* ignore */
+        }
+        toast.info("Devam etmek için giriş / kayıt gerekiyor. Yönlendiriliyorsunuz…");
+        navigate("/auth", { state: { from: { pathname: "/pricing" }, pendingPlan: planId, pendingInterval: billingPeriod } });
         return;
       }
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
@@ -32,7 +42,22 @@ export default function Pricing() {
       if (url) window.location.href = url;
       else throw new Error("Ödeme sayfası alınamadı");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Ödeme başlatılamadı");
+      const msg = e instanceof Error ? e.message : "Ödeme başlatılamadı";
+      // Token/oturum sorunu varsa kullanıcıyı auth’a yönlendir
+      if (String(msg).toLowerCase().includes("unauthorized")) {
+        try {
+          sessionStorage.setItem(
+            "auth_pending_checkout",
+            JSON.stringify({ plan: planId, interval: billingPeriod }),
+          );
+        } catch {
+          /* ignore */
+        }
+        toast.error("Oturum doğrulanamadı. Lütfen tekrar giriş yapın.");
+        navigate("/auth", { state: { from: { pathname: "/pricing" }, pendingPlan: planId, pendingInterval: billingPeriod } });
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setCheckoutLoading(null);
     }
@@ -62,6 +87,7 @@ export default function Pricing() {
       priceLabel: null,
       cta: "Başla",
       href: "/auth",
+      stripePlanId: "individual" as const,
       features: [
         "Tüm kataloğa erişim",
         "Sınırsız Designer kullanımı",
@@ -77,6 +103,7 @@ export default function Pricing() {
       priceLabel: null,
       cta: "Marka planı",
       href: "/auth",
+      stripePlanId: "brand" as const,
       features: [
         "Markanıza ait web kataloğu",
         "Özel marka sayfası (kendi URL adınız)",

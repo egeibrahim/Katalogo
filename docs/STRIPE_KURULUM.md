@@ -59,3 +59,27 @@ stripe listen --forward-to http://127.0.0.1:54321/functions/v1/stripe-webhook
 ```
 
 Verdiği `whsec_...` değerini `STRIPE_WEBHOOK_SECRET` olarak kullanın (sadece yerel için).
+
+---
+
+## 6. Sorun giderme: Ödeme yapmadan giriş oluyorsa
+
+**Kontrol listesi (Supabase + Stripe):**
+
+1. **Edge Function deploy edildi mi?**
+   ```bash
+   supabase functions deploy create-checkout-session
+   supabase functions deploy stripe-webhook
+   ```
+
+2. **Supabase secrets tanımlı mı?** (Dashboard → Project Settings → Edge Functions → Secrets veya `supabase secrets list`):
+   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+   - `STRIPE_PRICE_INDIVIDUAL_MONTHLY`, `STRIPE_PRICE_INDIVIDUAL_YEARLY`
+   - `STRIPE_PRICE_BRAND_MONTHLY`, `STRIPE_PRICE_BRAND_YEARLY`
+   - İsteğe bağlı: `SITE_URL` (canlı site adresi)
+
+3. **Stripe Dashboard:** Her plan için aylık/yıllık fiyat ekli ve Price ID’ler secret’larla aynı mı?
+
+4. **Webhook:** Stripe → Developers → Webhooks → URL `https://<project_ref>.supabase.co/functions/v1/stripe-webhook`, olaylar: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`. Signing secret → `STRIPE_WEBHOOK_SECRET`.
+
+5. **Hata ayıklama:** Kayıt sonrası "Ödeme sayfası açılamadı" çıkıyorsa tarayıcıda F12 → Console ve Network → `create-checkout-session` isteği: 401 = oturum yok, 400 = plan/fiyat hatası, 500 = Stripe/secret hatası.

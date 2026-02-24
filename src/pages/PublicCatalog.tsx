@@ -85,9 +85,9 @@ export default function PublicCatalog() {
   const productCount = products.length;
   const description =
     catalog?.name && productCount > 0
-      ? `${catalog.name} catalog – ${productCount} products. View on Newcatalog.`
+      ? `${catalog.name} catalog – ${productCount} products. View on Katalogo.`
       : catalog?.name
-        ? `${catalog.name} catalog. View on Newcatalog.`
+        ? `${catalog.name} catalog. View on Katalogo.`
         : "Katalog";
 
   usePageMeta({

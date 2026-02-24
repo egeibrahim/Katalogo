@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Globe, Menu, Search, ShoppingCart, X } from "lucide-react";
+import { Globe, LogOut, Menu, Search, ShoppingCart, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { LOCALES, type Locale } from "@/lib/i18n/locales";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserMembership } from "@/hooks/useUserMembership";
+import { getPlanDisplayName } from "@/lib/planFeatures";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "@/hooks/use-toast";
 
@@ -14,6 +16,7 @@ type NavItem = { label: string; to: string };
 export function NewcatalogTopNav() {
   const { locale, setLocale, t } = useI18n();
   const { user, isAdmin, signInWithGoogle, signOut } = useAuth();
+  const { data: membership } = useUserMembership(user?.id ?? null);
   const { totalCount } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -122,15 +125,21 @@ export function NewcatalogTopNav() {
 
             {user ? (
               <>
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="hidden text-sm font-semibold md:inline-flex"
+                  className="ru-iconbtn"
                   onClick={onLogout}
+                  aria-label={t("nav.logout")}
                 >
-                  {t("nav.logout")}
-                </Button>
+                  <LogOut className="h-4 w-4" aria-hidden />
+                </button>
+                <span
+                  className="hidden sm:inline-flex items-center rounded-full border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground/80"
+                  aria-label="Hesap türü"
+                  title="Hesap türü"
+                >
+                  {getPlanDisplayName(membership?.plan)}
+                </span>
                 <Link to={panelHref} className="ru-cta">
                   {t("nav.panel")}
                 </Link>

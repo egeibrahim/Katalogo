@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Menu, ShoppingCart, X } from "lucide-react";
+import { LogOut, Menu, ShoppingCart, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserMembership } from "@/hooks/useUserMembership";
+import { getPlanDisplayName } from "@/lib/planFeatures";
 import { useCart } from "@/contexts/CartContext";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { Logo } from "@/components/Logo";
@@ -13,7 +15,8 @@ type NavItem = { label: string; to: string };
 
 export function LandingNav() {
   const { t } = useI18n();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
+  const { data: membership } = useUserMembership(user?.id ?? null);
   const { totalCount } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -70,9 +73,27 @@ export function LandingNav() {
               )}
             </Link>
             {user ? (
-              <Link to={panelHref} className="landing-cta" onClick={closeMobile}>
-                {t("nav.panel")}
-              </Link>
+              <>
+                <span
+                  className="hidden md:inline-flex items-center rounded-full border border-[var(--awake-gray-200)] bg-white px-3 py-2 text-sm font-medium text-[var(--awake-dark)]"
+                  aria-label="Hesap türü"
+                  title="Hesap türü"
+                >
+                  {getPlanDisplayName(membership?.plan)}
+                </span>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-full px-3 py-2 text-base font-medium text-[var(--awake-dark)] bg-transparent hover:bg-white hover:shadow-sm cursor-pointer"
+                  onClick={() => { closeMobile(); signOut(); }}
+                  aria-label="Çıkış yap"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden />
+                  <span>Çıkış</span>
+                </button>
+                <Link to={panelHref} className="landing-cta" onClick={closeMobile}>
+                  {t("nav.panel")}
+                </Link>
+              </>
             ) : (
               <>
                 <Link to="/auth" onClick={closeMobile}>

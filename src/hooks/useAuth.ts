@@ -117,7 +117,9 @@ export function useAuth() {
   }, [fetchUserRole]);
 
   const signUp = async (email: string, password: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    // Email confirmation açıksa, kullanıcı doğrulama linkinden döndüğünde Auth sayfası
+    // pending checkout (sessionStorage) varsa Stripe yönlendirmesini tetikleyebilsin.
+    const redirectUrl = `${window.location.origin}/auth`;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -143,6 +145,9 @@ export function useAuth() {
       provider: "google",
       options: {
         redirectTo,
+        queryParams: {
+          prompt: "select_account",
+        },
       },
     });
     return { error };

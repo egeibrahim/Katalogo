@@ -33,21 +33,21 @@ export default function AdminUsers() {
       });
 
       if (error) {
-        toast({
-          title: "Operation failed",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
+toast({
+        title: "İşlem başarısız",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
 
-      toast({
-        title: "Role updated",
+    toast({
+      title: "Rol güncellendi",
         description: data?.user_id
-          ? `Changes saved. user_id: ${data.user_id}`
+          ? `Kaydedildi. user_id: ${data.user_id}`
           : data?.ok
-            ? "Changes saved."
-            : "Done.",
+            ? "Kaydedildi."
+            : "Tamamlandı.",
       });
       setEmail("");
     } finally {
@@ -65,7 +65,7 @@ export default function AdminUsers() {
 
       if (error) {
         toast({
-          title: "Operation failed",
+          title: "İşlem başarısız",
           description: error.message,
           variant: "destructive",
         });
@@ -73,8 +73,8 @@ export default function AdminUsers() {
       }
 
       toast({
-        title: "Membership plan updated",
-        description: data?.user_id ? `Changes saved. user_id: ${data.user_id}` : "Changes saved.",
+        title: "Plan güncellendi",
+        description: data?.user_id ? `Kaydedildi. user_id: ${data.user_id}` : "Kaydedildi.",
       });
       setEmail("");
     } finally {
@@ -83,18 +83,21 @@ export default function AdminUsers() {
   };
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-4 md:p-6 space-y-4">
       <Card className="rounded-xl border-gray-200 bg-white shadow-sm">
         <CardHeader>
-          <CardTitle>Users</CardTitle>
+          <CardTitle>Kullanıcılar</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Enter the user's <strong>email</strong> to make them admin. Role assignment can only be done by admin users.
+            Kayıt olan hesapları <strong>Supabase Dashboard → Authentication → Users</strong> üzerinden listeleyebilir ve silebilirsiniz. Plan veya rol değiştirmek için aşağıya kullanıcının <strong>e‑posta</strong> adresini girin.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Detaylı rehber: <code className="rounded bg-muted px-1">docs/KULLANICI_YONETIMI.md</code>
           </p>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:max-w-xl">
             <div className="grid gap-2">
-              <Label htmlFor="email">User email</Label>
+              <Label htmlFor="email">Kullanıcı e‑postası</Label>
               <Input
                 id="email"
                 placeholder="ornek@domain.com"
@@ -104,14 +107,14 @@ export default function AdminUsers() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Role</Label>
+              <Label>Rol</Label>
               <Select value={role} onValueChange={(v) => setRole(v as any)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
+                  <SelectValue placeholder="Rol seçin" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">admin</SelectItem>
-                  <SelectItem value="user">user</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="user">Kullanıcı</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -120,25 +123,25 @@ export default function AdminUsers() {
               <Label>Plan</Label>
               <Select value={plan} onValueChange={(v) => setPlan(v as any)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select plan" />
+                  <SelectValue placeholder="Plan seçin" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">free</SelectItem>
-                  <SelectItem value="individual">individual</SelectItem>
-                  <SelectItem value="brand">brand</SelectItem>
-                  <SelectItem value="corporate">corporate</SelectItem>
-                  <SelectItem value="custom_request">custom_request</SelectItem>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="individual">Kişisel</SelectItem>
+                  <SelectItem value="brand">Marka</SelectItem>
+                  <SelectItem value="corporate">Kurumsal</SelectItem>
+                  <SelectItem value="custom_request">Özel talep</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <Button onClick={onSetRole} disabled={!canSubmit || isSubmitting}>
-                {isSubmitting ? "Saving…" : "Update role"}
+                {isSubmitting ? "Kaydediliyor…" : "Rolü güncelle"}
               </Button>
 
               <Button variant="secondary" onClick={onSetPlan} disabled={!canSubmit || isSubmitting}>
-                {isSubmitting ? "Saving…" : "Update plan"}
+                {isSubmitting ? "Kaydediliyor…" : "Planı güncelle"}
               </Button>
 
               <Button

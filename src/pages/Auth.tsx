@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { isSupabaseConfigured } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -43,14 +43,50 @@ function authErrorMessage(error: { message?: string } | null, isSignUp = false):
 
 type LocationState = {
   from?: { pathname?: string };
+  pendingPlan?: "individual" | "brand";
+  pendingInterval?: "monthly" | "yearly";
 };
+
+const AUTH_PENDING_CHECKOUT_KEY = "auth_pending_checkout";
+
+function getPendingCheckoutFromStorage(): { plan: "individual" | "brand"; interval: "monthly" | "yearly" } | null {
+  try {
+    const raw = sessionStorage.getItem(AUTH_PENDING_CHECKOUT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { plan?: string; interval?: string };
+    if (parsed.plan === "individual" || parsed.plan === "brand")
+      return { plan: parsed.plan, interval: parsed.interval === "yearly" ? "yearly" : "monthly" };
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function setPendingCheckoutInStorage(plan: "individual" | "brand", interval: "monthly" | "yearly") {
+  try {
+    sessionStorage.setItem(AUTH_PENDING_CHECKOUT_KEY, JSON.stringify({ plan, interval }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearPendingCheckoutFromStorage() {
+  try {
+    sessionStorage.removeItem(AUTH_PENDING_CHECKOUT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session, isLoading, signIn, signUp, signInWithGoogle, resetPasswordForEmail } = useAuth();
 
-  const [tab, setTab] = useState<"login" | "signup">("login");
+  const st = location.state as LocationState | null;
+  const fromPricing = st?.from?.pathname === "/pricing" || !!st?.pendingPlan;
+  const hasPendingPlan = !!st?.pendingPlan;
+  const [tab, setTab] = useState<"login" | "signup">(hasPendingPlan ? "signup" : "login");
   const [authError, setAuthError] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -76,11 +112,46 @@ export default function Auth() {
     setAuthError(null);
   }, [tab]);
 
+  // Plan seçiliyse sessionStorage’a yaz (state kaybolmasın diye)
+  useEffect(() => {
+    if (st?.pendingPlan && st?.pendingInterval) {
+      setPendingCheckoutInStorage(st.pendingPlan, st.pendingInterval);
+    }
+  }, [st?.pendingPlan, st?.pendingInterval]);
+
   useEffect(() => {
     if (!isLoading && session) {
+      const fromState = location.state as LocationState | null;
+      const stored = getPendingCheckoutFromStorage();
+      const plan = fromState?.pendingPlan ?? stored?.plan;
+      const interval = fromState?.pendingInterval ?? stored?.interval ?? "monthly";
+
+      if (plan) {
+        const runCheckout = () => {
+          supabase.functions
+            .invoke("create-checkout-session", { body: { plan, interval } })
+            .then(({ data, error }) => {
+              clearPendingCheckoutFromStorage();
+              if (error) {
+                toast({ title: "Ödeme sayfası açılamadı", description: error.message, variant: "destructive" });
+                navigate("/pricing", { replace: true });
+                return;
+              }
+              const url = (data as { url?: string })?.url;
+              if (url) window.location.href = url;
+              else {
+                toast({ title: "Ödeme sayfası alınamadı", variant: "destructive" });
+                navigate("/pricing", { replace: true });
+              }
+            });
+        };
+        requestAnimationFrame(() => setTimeout(runCheckout, 150));
+        return;
+      }
+      clearPendingCheckoutFromStorage();
       navigate(redirectTo, { replace: true });
     }
-  }, [isLoading, session, navigate, redirectTo]);
+  }, [isLoading, session, navigate, redirectTo, location.state]);
 
   // Oturum varsa formu gösterme; yönlendirme mesajı göster (açılıp kapanma hissini önler)
   if (session) {
@@ -172,10 +243,20 @@ export default function Auth() {
             <p className="awake-auth-desc">
               {showForgotPassword
                 ? "E‑posta adresinizi girin, size şifre sıfırlama linki gönderelim."
-                : "Kayıtlı e‑posta ve şifrenizle giriş yapın veya yeni hesap oluşturun."}
+                : fromPricing
+                  ? "Kayıtlı e‑posta ve şifrenizle giriş yapın veya yeni hesap oluşturun."
+                  : "Kayıtlı e‑posta ve şifrenizle giriş yapın. Hesabınız yoksa önce Fiyatlandırma sayfasından bir plan seçin."}
             </p>
           </div>
           <div className="awake-auth-card-body">
+            {!fromPricing && !showForgotPassword && (
+              <p className="awake-auth-forgot-success mb-4">
+                Hesabınız yok mu?{" "}
+                <Link to="/pricing" className="awake-auth-back-link inline">
+                  Fiyatlandırma sayfasından bir plan seçin
+                </Link>
+              </p>
+            )}
             {showForgotPassword ? (
               forgotSent ? (
                 <>
@@ -209,7 +290,7 @@ export default function Auth() {
                   </a>
                 </form>
               )
-            ) : (
+            ) : fromPricing ? (
               <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "signup")}>
                 <TabsList className="awake-auth-tabs-list">
                   <TabsTrigger value="login" className="awake-auth-tabs-trigger">Giriş</TabsTrigger>
@@ -291,6 +372,42 @@ export default function Auth() {
                   </form>
                 </TabsContent>
               </Tabs>
+            ) : (
+              <div className="mt-6">
+                <button type="button" className="awake-auth-btn-outline w-full" onClick={onGoogle}>
+                  <Chrome className="h-4 w-4" aria-hidden /> Google ile giriş yap
+                </button>
+                <div className="awake-auth-divider">
+                  <span className="awake-auth-divider-line" />
+                  <span className="awake-auth-divider-text">veya</span>
+                  <span className="awake-auth-divider-line" />
+                </div>
+                <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+                  <div className="awake-auth-field">
+                    <Label htmlFor="email" className="awake-auth-label">E‑posta</Label>
+                    <Input id="email" type="email" autoComplete="email" className="awake-auth-input" {...form.register("email")} />
+                    {form.formState.errors.email && (
+                      <p className="awake-auth-error">{form.formState.errors.email.message}</p>
+                    )}
+                  </div>
+                  <div className="awake-auth-field">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password" className="awake-auth-label">Şifre</Label>
+                      <button type="button" className="awake-auth-forgot-link" onClick={() => setShowForgotPassword(true)}>
+                        Şifremi unuttum
+                      </button>
+                    </div>
+                    <Input id="password" type="password" autoComplete="current-password" className="awake-auth-input" {...form.register("password")} />
+                    {form.formState.errors.password && (
+                      <p className="awake-auth-error">{form.formState.errors.password.message}</p>
+                    )}
+                  </div>
+                  {authError && <p className="awake-auth-error" role="alert">{authError}</p>}
+                  <button type="submit" className="awake-auth-btn-primary w-full" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting ? "Bekleyin…" : "Giriş Yap"}
+                  </button>
+                </form>
+              </div>
             )}
           </div>
         </div>

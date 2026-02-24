@@ -8,6 +8,16 @@
 
 export type MembershipPlan = "free" | "individual" | "brand" | "corporate" | "custom_request";
 
+/** Profil ve arayüzde gösterilecek plan adı. */
+export function getPlanDisplayName(plan: MembershipPlan | null | undefined): string {
+  if (!plan || plan === "free") return "Free Plan";
+  if (plan === "individual") return "Kişisel";
+  if (plan === "brand") return "Marka";
+  if (plan === "corporate") return "Kurumsal";
+  if (plan === "custom_request") return "Özel";
+  return "Free Plan";
+}
+
 /** Günlük dışa aktarma limiti. Free=2, diğerleri sınırsız (999 kullanılıyor). */
 export function getExportDailyLimit(plan: MembershipPlan | null | undefined): number {
   if (!plan || plan === "free") return 2;

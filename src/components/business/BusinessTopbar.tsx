@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -15,6 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useUserMembership } from "@/hooks/useUserMembership";
+import { getPlanDisplayName } from "@/lib/planFeatures";
 
 const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
   { prefix: "/business/catalogs", title: "Kataloglarım", subtitle: "Kataloglarını oluştur, yayınla ve yönet" },
@@ -24,6 +27,7 @@ export function BusinessTopbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { session, signOut } = useAuth();
+  const { data: membership } = useUserMembership(session?.user?.id ?? null);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -59,11 +63,15 @@ export function BusinessTopbar() {
                 <Avatar className="h-6 w-6">
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
-                <span className="max-w-[220px] truncate">{email}</span>
+                <span className="max-w-[180px] truncate">{email}</span>
+                <Badge variant="outline" className="font-normal shrink-0">{getPlanDisplayName(membership?.plan)}</Badge>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="truncate">{email}</DropdownMenuLabel>
+              <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                {getPlanDisplayName(membership?.plan)}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={async () => {
