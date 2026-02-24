@@ -34,6 +34,7 @@ import BusinessCatalogs from "@/pages/business/BusinessCatalogs";
 import BusinessCatalogProducts from "@/pages/business/BusinessCatalogProducts";
 import BusinessProducts from "@/pages/business/BusinessProducts";
 import BusinessCatalog from "@/pages/business/BusinessCatalog";
+import BrandUsers from "@/pages/business/BrandUsers";
 import AdminCatalog from "@/pages/admin/AdminCatalog";
 import PublicCatalog from "@/pages/PublicCatalog";
 import PublicCatalogList from "@/pages/PublicCatalogList";
@@ -81,20 +82,22 @@ const App = () => (
               <Route path="/cart" element={<CartPage />} />
 
               <Route
-                path="/business"
+                path="/brand"
                 element={
                   <RequireCorporate>
                     <BusinessLayout />
                   </RequireCorporate>
                 }
               >
-                <Route index element={<Navigate to="/business/products" replace />} />
+                <Route index element={<Navigate to="/brand/products" replace />} />
                 <Route path="products" element={<BusinessProducts />} />
                 <Route path="products/:id" element={<AdminProductEdit mode="edit" />} />
                 <Route path="catalog" element={<BusinessCatalog />} />
                 <Route path="catalogs" element={<BusinessCatalogs />} />
                 <Route path="catalogs/:id/products" element={<BusinessCatalogProducts />} />
+                <Route path="users" element={<BrandUsers />} />
               </Route>
+              <Route path="/business/*" element={<Navigate to="/brand/products" replace />} />
 
               <Route
                 path="/admin"

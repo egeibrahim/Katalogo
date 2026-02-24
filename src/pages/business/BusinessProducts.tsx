@@ -196,7 +196,7 @@ export default function BusinessProducts() {
                   ) : items.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
-                        Henüz ürün yok. <Button variant="link" className="p-0 h-auto" onClick={() => navigate("/business/catalog")}>Katalog</Button> sekmesinden kopyalayarak ekleyin.
+                        Henüz ürün yok. <Button variant="link" className="p-0 h-auto" onClick={() => navigate("/brand/catalog")}>Katalog</Button> sekmesinden kopyalayarak ekleyin.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -232,7 +232,7 @@ export default function BusinessProducts() {
                                   <ExternalLink className="h-4 w-4" />
                                 </a>
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => navigate(`/business/products/${p.id}`)}>
+                              <Button variant="outline" size="sm" onClick={() => navigate(`/brand/products/${p.id}`)}>
                                 <Pencil className="h-4 w-4" /> Düzenle
                               </Button>
                               <AlertDialog>

@@ -38,14 +38,12 @@ export function RequireCorporate({ children }: RequireCorporateProps) {
     )
       return;
 
-    // Ücretli plan seçilmiş ama ödeme yapılmamış → Stripe Checkout'a yönlendir
-    const paidPlans = ["individual", "brand"];
-    const hasPendingPayment =
+    // Marka planı seçilmiş ama ödeme yapılmamış → Stripe Checkout'a yönlendir
+    const hasPendingBrandPayment =
       membership.plan === "free" &&
-      membership.pendingPlan &&
-      paidPlans.includes(membership.pendingPlan);
+      membership.pendingPlan === "brand";
 
-    if (!hasPendingPayment) return;
+    if (!hasPendingBrandPayment) return;
 
     redirectStarted.current = true;
     setRedirecting(true);
@@ -109,6 +107,9 @@ export function RequireCorporate({ children }: RequireCorporateProps) {
   if (isLoading || membershipLoading || redirecting) return null;
 
   if (!session) return <Navigate to="/auth" replace state={{ from: location }} />;
+  if (!membership || membership.plan !== "brand") {
+    return <Navigate to="/pricing" replace state={{ from: location, blockedPanelAccess: true }} />;
+  }
 
   return <>{children}</>;
 }

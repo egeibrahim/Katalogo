@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.create-checkout-session]
 verify_jwt = false
+
+[functions.brand-create-user]
+verify_jwt = false

@@ -1,5 +1,5 @@
 import { useLocation } from "react-router-dom";
-import { BookOpen, Package, Library } from "lucide-react";
+import { BookOpen, Package, Library, Users } from "lucide-react";
 
 import { NavLink } from "@/components/NavLink";
 import {
@@ -15,9 +15,10 @@ import {
 } from "@/components/ui/sidebar";
 
 const ITEMS = [
-  { title: "Ürünler", url: "/business/products", icon: Package },
-  { title: "Katalog", url: "/business/catalog", icon: Library },
-  { title: "Kataloglarım", url: "/business/catalogs", icon: BookOpen },
+  { title: "Ürünler", url: "/brand/products", icon: Package },
+  { title: "Katalog", url: "/brand/catalog", icon: Library },
+  { title: "Kataloglarım", url: "/brand/catalogs", icon: BookOpen },
+  { title: "Kullanıcılar", url: "/brand/users", icon: Users },
 ] as const;
 
 export function BusinessSidebar() {

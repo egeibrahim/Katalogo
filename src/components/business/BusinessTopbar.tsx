@@ -20,7 +20,7 @@ import { useUserMembership } from "@/hooks/useUserMembership";
 import { getPlanDisplayName } from "@/lib/planFeatures";
 
 const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
-  { prefix: "/business/catalogs", title: "Kataloglarım", subtitle: "Kataloglarını oluştur, yayınla ve yönet" },
+  { prefix: "/brand/catalogs", title: "Kataloglarım", subtitle: "Kataloglarını oluştur, yayınla ve yönet" },
 ];
 
 export function BusinessTopbar() {

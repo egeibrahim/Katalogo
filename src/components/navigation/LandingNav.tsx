@@ -28,7 +28,8 @@ export function LandingNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const panelHref = isAdmin ? "/admin" : "/business";
+  const panelHref = isAdmin ? "/admin" : "/brand";
+  const canAccessPanel = isAdmin || membership?.plan === "brand";
   const closeMobile = () => setMobileOpen(false);
 
   const NAV: NavItem[] = [
@@ -90,9 +91,11 @@ export function LandingNav() {
                   <LogOut className="h-4 w-4" aria-hidden />
                   <span>Çıkış</span>
                 </button>
-                <Link to={panelHref} className="landing-cta" onClick={closeMobile}>
-                  {t("nav.panel")}
-                </Link>
+                {canAccessPanel ? (
+                  <Link to={panelHref} className="landing-cta" onClick={closeMobile}>
+                    {t("nav.panel")}
+                  </Link>
+                ) : null}
               </>
             ) : (
               <>

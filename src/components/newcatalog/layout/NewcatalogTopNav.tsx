@@ -28,7 +28,8 @@ export function NewcatalogTopNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const panelHref = isAdmin ? "/admin" : "/business";
+  const panelHref = isAdmin ? "/admin" : "/brand";
+  const canAccessPanel = isAdmin || membership?.plan === "brand";
 
   const onGoogle = async () => {
     const { error } = await signInWithGoogle();
@@ -140,9 +141,11 @@ export function NewcatalogTopNav() {
                 >
                   {getPlanDisplayName(membership?.plan)}
                 </span>
-                <Link to={panelHref} className="ru-cta">
-                  {t("nav.panel")}
-                </Link>
+                {canAccessPanel ? (
+                  <Link to={panelHref} className="ru-cta">
+                    {t("nav.panel")}
+                  </Link>
+                ) : null}
               </>
             ) : (
               <>

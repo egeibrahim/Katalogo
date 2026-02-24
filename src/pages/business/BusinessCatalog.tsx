@@ -207,7 +207,7 @@ export default function BusinessCatalog() {
     onSuccess: (newId) => {
       toast.success("Product copied. Added to My products tab.");
       qc.invalidateQueries({ queryKey: ["business", "products", userId] });
-      navigate("/business/products");
+      navigate("/brand/products");
     },
     onError: (e: any) => toast.error(e?.message ?? "Copy failed"),
   });

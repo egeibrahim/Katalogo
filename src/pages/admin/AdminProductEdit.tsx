@@ -272,7 +272,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
   const qc = useQueryClient();
   const { user } = useAuth();
 
-  const isBusinessScope = location.pathname.startsWith("/business/");
+  const isBusinessScope = location.pathname.startsWith("/brand/");
   const productId = mode === "edit" ? id : undefined;
   const [activeSection, setActiveSection] = useState("general");
   const suppressNavigateOnCreateRef = useRef(false);
@@ -495,7 +495,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
   useEffect(() => {
     if (!isBusinessScope || mode !== "edit" || !product || !user?.id) return;
     if ((product as any).owner_user_id !== user.id) {
-      navigate("/business/products", { replace: true });
+      navigate("/brand/products", { replace: true });
     }
   }, [isBusinessScope, mode, product, user?.id, navigate]);
 
@@ -2004,7 +2004,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
       qc.invalidateQueries({ queryKey: ["admin", "product", pid, "shippingOverrides"] });
       toast.success("Kaydedildi.");
       if (!suppressNavigateOnCreateRef.current) {
-        navigate(isBusinessScope ? "/business/products" : "/admin/products");
+        navigate(isBusinessScope ? "/brand/products" : "/admin/products");
       }
       if (isBusinessScope) qc.invalidateQueries({ queryKey: ["business", "products", user?.id] });
     },
@@ -2249,7 +2249,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
               {!sizeRange && !colorCount && !gsm && !oz ? <span>Meta info comes from Attributes/Variants data.</span> : null}
             </div>
           }
-          onBack={() => navigate(isBusinessScope ? "/business/products" : "/admin/products")}
+          onBack={() => navigate(isBusinessScope ? "/brand/products" : "/admin/products")}
           onSave={() => saveMutation.mutate([...galleryOrder])}
           saving={saveMutation.isPending}
         />

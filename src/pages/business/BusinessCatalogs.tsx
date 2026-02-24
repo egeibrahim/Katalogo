@@ -257,7 +257,7 @@ export default function BusinessCatalogs() {
                     <Pencil className="h-4 w-4" /> Düzenle
                   </Button>
                   <Button variant="outline" size="sm" className="gap-2" asChild>
-                    <Link to={`/business/catalogs/${c.id}/products`}>
+                    <Link to={`/brand/catalogs/${c.id}/products`}>
                       <Boxes className="h-4 w-4" /> Ürünler
                     </Link>
                   </Button>

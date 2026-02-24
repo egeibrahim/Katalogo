@@ -2,7 +2,7 @@ import "./landing.css";
 import "./landing-awake.css";
 import "./pricing-awake.css";
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Check, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,9 +56,18 @@ export default function Pricing() {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const handledResult = useRef(false);
+  const handledAccessWarning = useRef(false);
   usePageMeta({ title: "Fiyat – Katalogo" });
+
+  useEffect(() => {
+    const state = location.state as { blockedPanelAccess?: boolean } | null;
+    if (handledAccessWarning.current || !state?.blockedPanelAccess) return;
+    handledAccessWarning.current = true;
+    toast.info("Panel sadece Marka planında kullanılabilir.");
+  }, [location.state]);
 
   // Stripe success/cancel dönüşünde pending_plan temizle
   useEffect(() => {
