@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Search, ShoppingCart, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,14 @@ const TOP_NAV = [
 
 export function TopMenu() {
   const { user, signInWithGoogle } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const onGoogle = async () => {
     const { error } = await signInWithGoogle();
@@ -28,7 +37,7 @@ export function TopMenu() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
+    <header className={`sticky top-0 z-50 border-b topbar-landing-standard ${scrolled ? "topbar-landing-standard--scrolled" : ""}`}>
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
         <Link to="/home" className="text-sm font-semibold tracking-tight" aria-label="CatalogApp">
           CATALOGAPP
@@ -77,7 +86,7 @@ export function TopMenu() {
               </Link>
 
               <Button asChild>
-                <Link to="/auth">Get Started</Link>
+                <Link to="/pricing">Get Started</Link>
               </Button>
             </>
           ) : (

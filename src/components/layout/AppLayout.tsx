@@ -1,7 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { PagesBar } from "@/components/navigation/PagesBar";
 import { TopMenu } from "@/components/navigation/TopMenu";
-import { NewcatalogTopNav } from "@/components/newcatalog/layout/NewcatalogTopNav";
+import { LandingNav } from "@/components/navigation/LandingNav";
 import { useDefaultMeta } from "@/hooks/usePageMeta";
 
 export default function AppLayout() {
@@ -9,7 +9,6 @@ export default function AppLayout() {
   useDefaultMeta();
   const isAdminArea = location.pathname.startsWith("/admin");
   const isBusinessArea = location.pathname.startsWith("/business");
-  const isPublicLanding = location.pathname === "/";
   const hidePagesBar = location.pathname === "/" || location.pathname === "/auth";
   const isHomeOrAuth = location.pathname === "/" || location.pathname === "/auth";
   const isNewcatalogStorefront =
@@ -24,15 +23,11 @@ export default function AppLayout() {
     location.pathname.startsWith("/pricing") ||
     location.pathname.startsWith("/blog");
 
-  if (isPublicLanding) {
-    return <Outlet />;
-  }
-
   return (
     <div className="min-h-dvh bg-background text-foreground">
       {!isAdminArea && !isBusinessArea ? (
         isNewcatalogStorefront ? (
-          <NewcatalogTopNav />
+          <LandingNav />
         ) : (
           <>
             <TopMenu />

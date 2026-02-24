@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -7,15 +8,23 @@ type PageLink = { label: string; to: string };
 const PAGES: PageLink[] = [];
 
 export function PagesBar() {
-  if (PAGES.length === 0) return null;
-
   const location = useLocation();
   const navigate = useNavigate();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  if (PAGES.length === 0) return null;
 
   const current = PAGES.find((p) => p.to === location.pathname)?.to ?? PAGES[0].to;
 
   return (
-    <header className="border-b border-border bg-background">
+    <header className={cn("sticky top-0 z-40 topbar-landing-standard", scrolled && "topbar-landing-standard--scrolled")}>
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-3 px-4">
         <div className="text-xs font-medium text-muted-foreground">Pages</div>
 

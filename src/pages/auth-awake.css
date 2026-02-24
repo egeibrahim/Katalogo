@@ -1,0 +1,258 @@
+/* Giriş sayfası – Awake teması */
+.awake-auth-page {
+  --awake-primary: #4928FD;
+  --awake-secondary: #BA81EE;
+  --awake-dark: #1B1D1E;
+  --awake-muted: #767778;
+  --awake-gray-100: #F4F4F4;
+  --awake-gray-200: #e8e8e8;
+  --awake-white: #fff;
+  font-family: "Inter Tight", sans-serif;
+  color: var(--awake-dark);
+  min-height: calc(100dvh - 3.5rem);
+  background: linear-gradient(180deg, #f8f7ff 0%, #fff 40%);
+}
+
+.awake-auth-page::before {
+  content: '';
+  position: fixed;
+  width: 100%;
+  height: 80vh;
+  left: 0;
+  top: 10vh;
+  background: linear-gradient(90deg, #D9F3FC 20%, #FDF1D3 50%, #f1e6fc 80%);
+  filter: blur(180px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.awake-auth-page .awake-auth-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+}
+
+/* Kart */
+.awake-auth-page .awake-auth-card {
+  background: var(--awake-white);
+  border: 1px solid var(--awake-gray-200);
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.awake-auth-page .awake-auth-card-header {
+  padding: 1.75rem 1.5rem 0;
+  text-align: center;
+}
+
+.awake-auth-page .awake-auth-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--awake-dark);
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.awake-auth-page .awake-auth-desc {
+  font-size: 0.9375rem;
+  color: var(--awake-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.awake-auth-page .awake-auth-card-body {
+  padding: 1.5rem 1.5rem 1.75rem;
+}
+
+/* Tabs – Awake stil */
+.awake-auth-page .awake-auth-tabs-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  background: var(--awake-gray-100);
+  border-radius: 50rem;
+  padding: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.awake-auth-page .awake-auth-tabs-trigger {
+  padding: 10px 16px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--awake-muted);
+  background: transparent;
+  border: none;
+  border-radius: 50rem;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+
+.awake-auth-page .awake-auth-tabs-trigger[data-state="active"] {
+  background: var(--awake-white);
+  color: var(--awake-dark);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Form */
+.awake-auth-page .awake-auth-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--awake-dark);
+  margin-bottom: 6px;
+}
+
+.awake-auth-page .awake-auth-input {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--awake-dark);
+  background: var(--awake-white);
+  border: 1px solid var(--awake-gray-200);
+  border-radius: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.awake-auth-page .awake-auth-input::placeholder {
+  color: var(--awake-muted);
+}
+
+.awake-auth-page .awake-auth-input:focus {
+  outline: none;
+  border-color: var(--awake-primary);
+  box-shadow: 0 0 0 3px rgba(73, 40, 253, 0.12);
+}
+
+.awake-auth-page .awake-auth-field {
+  margin-bottom: 1.25rem;
+}
+
+.awake-auth-page .awake-auth-error {
+  font-size: 0.8125rem;
+  color: #dc2626;
+  margin-top: 4px;
+}
+
+/* Ayırıcı */
+.awake-auth-page .awake-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 1.25rem 0;
+}
+
+.awake-auth-page .awake-auth-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--awake-gray-200);
+}
+
+.awake-auth-page .awake-auth-divider-text {
+  font-size: 0.8125rem;
+  color: var(--awake-muted);
+}
+
+/* Butonlar */
+.awake-auth-page .awake-auth-btn-primary {
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--awake-white);
+  background: var(--awake-primary);
+  border: none;
+  border-radius: 50rem;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.awake-auth-page .awake-auth-btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.awake-auth-page .awake-auth-btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.awake-auth-page .awake-auth-btn-outline {
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--awake-dark);
+  background: var(--awake-white);
+  border: 2px solid var(--awake-gray-200);
+  border-radius: 50rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.awake-auth-page .awake-auth-btn-outline:hover {
+  border-color: var(--awake-dark);
+  background: var(--awake-gray-100);
+}
+
+/* Şifremi unuttum link */
+.awake-auth-page .awake-auth-forgot-link {
+  font-size: 0.8125rem;
+  color: var(--awake-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.awake-auth-page .awake-auth-forgot-link:hover {
+  color: var(--awake-primary);
+}
+
+/* Şifremi unuttum ekranı */
+.awake-auth-page .awake-auth-forgot-success {
+  font-size: 0.9375rem;
+  color: var(--awake-muted);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.awake-auth-page .awake-auth-back-link {
+  display: block;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--awake-primary);
+  margin-top: 1rem;
+  text-decoration: none;
+}
+
+.awake-auth-page .awake-auth-back-link:hover {
+  text-decoration: underline;
+}
+
+/* Supabase uyarı kutusu */
+.awake-auth-page .awake-auth-warning {
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  background: #fffbeb;
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  color: #92400e;
+  margin-bottom: 1.5rem;
+}
+
+.awake-auth-page .awake-auth-warning code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+}

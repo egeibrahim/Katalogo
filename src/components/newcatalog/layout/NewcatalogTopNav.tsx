@@ -1,5 +1,6 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Globe, Search, ShoppingCart } from "lucide-react";
+import { Globe, Menu, Search, ShoppingCart, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { LOCALES, type Locale } from "@/lib/i18n/locales";
@@ -14,6 +15,15 @@ export function NewcatalogTopNav() {
   const { locale, setLocale, t } = useI18n();
   const { user, isAdmin, signInWithGoogle, signOut } = useAuth();
   const { totalCount } = useCart();
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const panelHref = isAdmin ? "/admin" : "/business";
 
@@ -32,16 +42,20 @@ export function NewcatalogTopNav() {
     await signOut();
   };
 
+  /* Tek menü: landing + dashboard linkleri */
   const NAV: NavItem[] = [
+    { label: "Ana Sayfa", to: "/" },
+    { label: "Hakkımızda", to: "/#aboutus" },
+    { label: t("nav.features"), to: "/features" },
+    { label: "İşler", to: "/#work" },
+    { label: t("nav.pricing"), to: "/pricing" },
     { label: t("nav.catalog"), to: "/catalog/all" },
     { label: "Markalar", to: "/brands" },
-    { label: t("nav.features"), to: "/features" },
-    { label: t("nav.pricing"), to: "/pricing" },
     { label: t("nav.blog"), to: "/blog" },
   ];
 
   return (
-    <header className="ru-topnav" aria-label="Top navigation">
+    <header className={`ru-topnav topbar-landing-standard ${scrolled ? "ru-topnav--scrolled topbar-landing-standard--scrolled" : ""}`} aria-label="Top navigation">
       <div className="ru-promo">
         <div className="ru-max">
           <div className="flex h-8 items-center justify-center px-6 text-xs font-semibold">
@@ -52,7 +66,7 @@ export function NewcatalogTopNav() {
 
       <div className="ru-max">
         <div className="flex h-14 items-center justify-between gap-4 px-6">
-          <Link to="/catalog/all" className="ru-logo" aria-label="Katalogo">
+          <Link to="/" className="ru-logo" aria-label="Katalogo">
             Katalogo
           </Link>
 
@@ -65,6 +79,15 @@ export function NewcatalogTopNav() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="ru-iconbtn md:hidden"
+              aria-label={mobileOpen ? "Menüyü kapat" : "Menü"}
+              aria-expanded={mobileOpen}
+              onClick={() => setMobileOpen((v) => !v)}
+            >
+              {mobileOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
+            </button>
             <button type="button" className="ru-iconbtn" aria-label="Search">
               <Search className="h-4 w-4" aria-hidden />
             </button>
@@ -125,13 +148,31 @@ export function NewcatalogTopNav() {
                 >
                   Continue with Google
                 </Button>
-                <Link to="/auth" className="ru-cta">
+                <Link to="/pricing" className="ru-cta">
                   {t("nav.getStarted")}
                 </Link>
               </>
             )}
           </div>
         </div>
+
+        {/* Mobil menü: linkler */}
+        {mobileOpen && (
+          <div className="border-t border-border bg-background md:hidden">
+            <nav className="flex flex-col gap-0 px-6 py-3" aria-label="Mobil menü">
+              {NAV.map((it) => (
+                <Link
+                  key={it.label}
+                  to={it.to}
+                  className="ru-navlink block rounded-lg px-3 py-2.5 text-sm font-semibold"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {it.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );

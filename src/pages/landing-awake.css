@@ -16,7 +16,7 @@
 
 .landing-page .font-instrument { font-family: "Instrument Serif", serif; font-style: italic; font-weight: 400; }
 
-/* Header – fixed, pill nav */
+/* Header – fixed, şeffaf; aşağı scroll'da blur */
 .landing-page .landing-header {
   position: fixed;
   left: 0;
@@ -26,6 +26,22 @@
   padding: 12px 0;
   background: transparent;
   border: none;
+  transition: background 0.25s ease, backdrop-filter 0.25s ease, border-color 0.25s ease;
+}
+.landing-page .landing-header.landing-header--scrolled {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+/* Site genelinde LP menü: fixed yerine sticky */
+.landing-page .landing-header.landing-header--sticky {
+  position: sticky;
+  top: 0;
+}
+/* Sadece menü wrapper'ı: min-height olmasın (içerik aşağıda) */
+.landing-page.landing-page--nav-only {
+  min-height: 0;
 }
 
 .landing-page .landing-header-inner {
@@ -37,32 +53,20 @@
   justify-content: space-between;
 }
 
-.landing-page .landing-header .landing-logo {
+.landing-page .landing-header .landing-logo,
+.landing-nav .landing-logo {
   display: flex;
   align-items: center;
   gap: 10px;
   text-decoration: none;
   color: var(--awake-dark);
 }
-.landing-page .landing-header .landing-logo .logo-mark svg {
+.landing-page .landing-header .landing-logo .logo-img,
+.landing-nav .landing-logo .logo-img {
   height: 36px;
-  width: 36px;
+  width: auto;
   display: block;
-  flex-shrink: 0;
-}
-.landing-page .landing-header .landing-logo .logo-mark-bg {
-  fill: var(--awake-primary, #4928FD);
-}
-.landing-page .landing-header .landing-logo .logo-mark-fg {
-  fill: var(--awake-white, #fff);
-}
-.landing-page .landing-header .landing-logo .logo-wordmark {
-  font-family: "Inter Tight", sans-serif;
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  color: inherit;
-  line-height: 1.2;
+  object-fit: contain;
 }
 
 .landing-page .landing-nav-toggle {
@@ -135,10 +139,10 @@
   }
 }
 
-/* Banner – gradient blob */
+/* Banner – gradient blob (menü artık layout'ta sticky, ekstra üst boşluk gerekmez) */
 .landing-page .landing-hero {
   position: relative;
-  padding-top: 120px;
+  padding-top: 2.5rem;
   padding-bottom: 80px;
   border: none;
   background: transparent;
@@ -382,14 +386,20 @@
 .landing-page .landing-faq-item[open] .landing-faq-q::after { content: "−"; }
 .landing-page .landing-faq-a { margin: 12px 0 0; color: var(--awake-muted); line-height: 1.6; }
 
-/* Pricing page – plan cards */
+/* Pricing page – plan cards (tek kolon) */
 .landing-page .landing-pricing-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2rem;
   align-items: stretch;
 }
-@media (max-width: 992px) { .landing-page .landing-pricing-grid { grid-template-columns: 1fr; } }
+.landing-page .landing-pricing-grid--single {
+  grid-template-columns: 1fr;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+}
+@media (max-width: 992px) { .landing-page .landing-pricing-grid { grid-template-columns: 1fr; max-width: none; } }
 .landing-page .landing-pricing-card {
   position: relative;
   display: flex;
@@ -419,8 +429,12 @@
 }
 .landing-page .landing-pricing-name { font-size: 1.25rem; font-weight: 600; color: var(--awake-dark); margin: 0 0 0.25rem; }
 .landing-page .landing-pricing-desc { font-size: 14px; color: var(--awake-muted); margin: 0 0 1rem; }
+.landing-page .landing-pricing-price-block { margin-bottom: 0.5rem; }
+.landing-page .landing-pricing-price-row { display: flex; align-items: baseline; gap: 4px; }
+.landing-page .landing-pricing-price-row--yearly { margin-top: 2px; font-size: 0.95rem; }
+.landing-page .landing-pricing-price-row--yearly .landing-pricing-price { font-size: 1.25rem; }
 .landing-page .landing-pricing-price { font-size: 1.75rem; font-weight: 600; color: var(--awake-dark); }
-.landing-page .landing-pricing-period { font-size: 14px; font-weight: 400; color: var(--awake-muted); margin-left: 4px; }
+.landing-page .landing-pricing-period { font-size: 14px; font-weight: 400; color: var(--awake-muted); margin-left: 2px; }
 .landing-page .landing-pricing-features {
   list-style: none;
   padding: 0;
@@ -463,3 +477,216 @@
   transition: border-color 0.2s, background 0.2s;
 }
 .landing-page .landing-pricing-cta-outline:hover { border-color: var(--awake-dark); background: var(--awake-gray-100); }
+
+/* ========== Pricing page (özenli, tek satır) ========== */
+.pricing-page {
+  --pricing-gap: 1.25rem;
+  --pricing-radius: 12px;
+  --pricing-border: 1px solid var(--awake-gray-200, #e5e7eb);
+  --pricing-card-min: 220px;
+}
+.pricing-section {
+  padding: 2.5rem 1.25rem 4rem;
+  width: 100%;
+}
+.pricing-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.pricing-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+.pricing-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--awake-dark, #111);
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+.pricing-subtitle {
+  font-size: 0.9375rem;
+  color: var(--awake-muted, #6b7280);
+  margin: 0;
+  line-height: 1.5;
+}
+.pricing-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--pricing-gap);
+}
+.pricing-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 var(--pricing-card-min);
+  min-width: var(--pricing-card-min);
+  max-width: 280px;
+  background: var(--awake-white, #fff);
+  border: var(--pricing-border);
+  border-radius: var(--pricing-radius);
+  padding: 1.5rem 1.25rem;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.pricing-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+.pricing-card--highlight {
+  border-color: var(--awake-primary, #4928fd);
+  box-shadow: 0 4px 20px rgba(73, 40, 253, 0.12);
+}
+.pricing-card--highlight:hover {
+  box-shadow: 0 6px 24px rgba(73, 40, 253, 0.16);
+}
+.pricing-badge {
+  position: absolute;
+  top: -0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--awake-primary, #4928fd);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.pricing-card-head {
+  margin-bottom: 1rem;
+}
+.pricing-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--awake-dark, #111);
+  margin: 0 0 0.25rem;
+}
+.pricing-desc {
+  font-size: 0.8125rem;
+  color: var(--awake-muted, #6b7280);
+  margin: 0;
+  line-height: 1.4;
+}
+.pricing-price-block {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--awake-gray-200, #e5e7eb);
+}
+.pricing-price-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.pricing-price-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+.pricing-price-row--secondary {
+  font-size: 0.875rem;
+  color: var(--awake-muted, #6b7280);
+}
+.pricing-price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--awake-dark, #111);
+  letter-spacing: -0.02em;
+}
+.pricing-price--small {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.pricing-price--solo {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--awake-dark, #111);
+}
+.pricing-period {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--awake-muted, #6b7280);
+}
+.pricing-price-row--secondary .pricing-period {
+  font-weight: 400;
+}
+.pricing-note {
+  font-size: 0.75rem;
+  color: var(--awake-muted, #6b7280);
+  margin-left: 0.25rem;
+}
+.pricing-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.pricing-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--awake-dark, #111);
+}
+.pricing-feature-icon {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+  color: var(--awake-primary, #4928fd);
+}
+.pricing-cta-wrap {
+  margin-top: auto;
+}
+.pricing-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.pricing-cta--primary {
+  background: var(--awake-primary, #4928fd);
+  color: #fff;
+  border: none;
+}
+.pricing-cta--primary:hover {
+  filter: brightness(1.05);
+}
+.pricing-cta--secondary {
+  background: transparent;
+  color: var(--awake-dark, #111);
+  border: 2px solid var(--awake-gray-200, #e5e7eb);
+}
+.pricing-cta--secondary:hover {
+  border-color: var(--awake-dark, #111);
+  background: var(--awake-gray-100, #f3f4f6);
+}
+.pricing-cta-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (max-width: 900px) {
+  .pricing-list {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .pricing-card {
+    flex: 0 0 var(--pricing-card-min);
+    max-width: 260px;
+  }
+}

@@ -8,13 +8,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { isSupabaseConfigured } from "@/integrations/supabase/client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Chrome } from "lucide-react";
 import { usePageMeta } from "@/hooks/usePageMeta";
+
+import "./landing-awake.css";
+import "./auth-awake.css";
 
 const authSchema = z.object({
   email: z.string().email("Geçerli bir e‑posta girin"),
@@ -47,10 +48,14 @@ type LocationState = {
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { session, isLoading, signIn, signUp, signInWithGoogle } = useAuth();
+  const { session, isLoading, signIn, signUp, signInWithGoogle, resetPasswordForEmail } = useAuth();
 
   const [tab, setTab] = useState<"login" | "signup">("login");
   const [authError, setAuthError] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
 
   const redirectTo = useMemo(() => {
     const st = (location.state as LocationState | null) ?? null;
@@ -62,7 +67,10 @@ export default function Auth() {
     defaultValues: { email: "", password: "" },
   });
 
-  usePageMeta({ title: tab === "login" ? "Giriş Yap" : "Kayıt Ol", noIndex: true });
+  usePageMeta({
+    title: showForgotPassword ? "Şifremi Unuttum" : tab === "login" ? "Giriş Yap" : "Kayıt Ol",
+    noIndex: true,
+  });
 
   useEffect(() => {
     setAuthError(null);
@@ -77,8 +85,10 @@ export default function Auth() {
   // Oturum varsa formu gösterme; yönlendirme mesajı göster (açılıp kapanma hissini önler)
   if (session) {
     return (
-      <div className="min-h-[calc(100dvh-3.5rem)] flex items-center justify-center px-4">
-        <p className="text-muted-foreground">Yönlendiriliyorsunuz…</p>
+      <div className="landing-page awake-auth-page">
+        <div className="awake-auth-inner flex items-center justify-center">
+          <p className="awake-auth-desc">Yönlendiriliyorsunuz…</p>
+        </div>
       </div>
     );
   }
@@ -125,115 +135,165 @@ export default function Auth() {
     }
   };
 
+  const onForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = forgotEmail.trim();
+    if (!email) {
+      toast({ title: "E‑posta girin", variant: "destructive" });
+      return;
+    }
+    setForgotSubmitting(true);
+    const { error } = await resetPasswordForEmail(email);
+    setForgotSubmitting(false);
+    if (error) {
+      toast({ title: "Gönderilemedi", description: error.message, variant: "destructive" });
+      return;
+    }
+    setForgotSent(true);
+    toast({
+      title: "E‑posta gönderildi",
+      description: "Şifre sıfırlama linki e‑posta adresinize gönderildi. Gelen kutunuzu (ve spam klasörünü) kontrol edin.",
+    });
+  };
+
   return (
-    <div className="min-h-[calc(100dvh-3.5rem)] px-4 py-12">
-      <div className="mx-auto w-full max-w-md space-y-4">
+    <div className="landing-page awake-auth-page">
+      <div className="awake-auth-inner">
         {!isSupabaseConfigured && (
-          <div className="rounded-lg border border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-            <strong>Supabase ayarları eksik.</strong> Giriş yapabilmek için proje kökünde <code className="rounded bg-amber-100 dark:bg-amber-900/50 px-1">.env</code> dosyasında <code className="rounded bg-amber-100 dark:bg-amber-900/50 px-1">VITE_SUPABASE_URL</code> ve <code className="rounded bg-amber-100 dark:bg-amber-900/50 px-1">VITE_SUPABASE_PUBLISHABLE_KEY</code> tanımlayın (Supabase Dashboard → Project Settings → API). Canlı sitede ise Vercel → Project → Settings → Environment Variables.
+          <div className="awake-auth-warning">
+            <strong>Supabase ayarları eksik.</strong> Giriş yapabilmek için proje kökünde <code>.env</code> dosyasında <code>VITE_SUPABASE_URL</code> ve <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> tanımlayın (Supabase Dashboard → Project Settings → API). Canlı sitede ise Vercel → Project → Settings → Environment Variables.
           </div>
         )}
-        <Card>
-          <CardHeader>
-            <CardTitle>Yönetim Girişi</CardTitle>
-            <CardDescription className="space-y-2">
-              <span className="block">
-                <strong>Admin giriş bilgileri:</strong> Projede hazır kullanıcı yok. Önce <strong>Kayıt</strong> sekmesinden
-                bir e‑posta ve en az 6 karakterlik şifre ile kayıt olun. İlk kayıt olan kullanıcı otomatik <strong>admin</strong> olur.
-              </span>
-              <span className="block">
-                Giriş yapmak için aynı e‑posta ve şifreyi <strong>Giriş</strong> sekmesinde kullanın. Daha önce admin oluştuysa
-                yeni kayıtlar admin olmaz.
-              </span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Giriş</TabsTrigger>
-                <TabsTrigger value="signup">Kayıt</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="login" className="mt-6">
-                <Button type="button" variant="outline" className="w-full" onClick={onGoogle}>
-                  <Chrome className="mr-2 h-4 w-4" /> Google ile devam et
-                </Button>
-
-                <div className="my-4 flex items-center gap-3">
-                  <div className="h-px flex-1 bg-border" />
-                  <span className="text-xs text-muted-foreground">veya</span>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-
-                <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">E‑posta</Label>
-                    <Input id="email" type="email" autoComplete="email" {...form.register("email")} />
-                    {form.formState.errors.email ? (
-                      <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
-                    ) : null}
+        <div className="awake-auth-card">
+          <div className="awake-auth-card-header">
+            <h1 className="awake-auth-title">
+              {showForgotPassword ? "Şifremi unuttum" : "Hesabınıza giriş yapın"}
+            </h1>
+            <p className="awake-auth-desc">
+              {showForgotPassword
+                ? "E‑posta adresinizi girin, size şifre sıfırlama linki gönderelim."
+                : "Kayıtlı e‑posta ve şifrenizle giriş yapın veya yeni hesap oluşturun."}
+            </p>
+          </div>
+          <div className="awake-auth-card-body">
+            {showForgotPassword ? (
+              forgotSent ? (
+                <>
+                  <p className="awake-auth-forgot-success">
+                    Şifre sıfırlama linki <strong>{forgotEmail}</strong> adresine gönderildi. E‑postanızı kontrol edin.
+                  </p>
+                  <button type="button" className="awake-auth-btn-outline" onClick={() => setShowForgotPassword(false)}>
+                    Girişe dön
+                  </button>
+                </>
+              ) : (
+                <form onSubmit={onForgotSubmit} className="space-y-4">
+                  <div className="awake-auth-field">
+                    <Label htmlFor="forgot-email" className="awake-auth-label">E‑posta</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="ornek@email.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      disabled={forgotSubmitting}
+                      className="awake-auth-input"
+                    />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Şifre</Label>
-                    <Input id="password" type="password" autoComplete="current-password" {...form.register("password")} />
-                    {form.formState.errors.password ? (
-                      <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
-                    ) : null}
-                  </div>
-
-                  {authError ? (
-                    <p className="text-sm text-destructive" role="alert">
-                      {authError}
-                    </p>
-                  ) : null}
-                  <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? "Bekleyin…" : "Giriş Yap"}
-                  </Button>
+                  <button type="submit" className="awake-auth-btn-primary" disabled={forgotSubmitting}>
+                    {forgotSubmitting ? "Gönderiliyor…" : "Sıfırlama linki gönder"}
+                  </button>
+                  <a href="#" className="awake-auth-back-link" onClick={(e) => { e.preventDefault(); setShowForgotPassword(false); }}>
+                    Girişe dön
+                  </a>
                 </form>
-              </TabsContent>
+              )
+            ) : (
+              <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "signup")}>
+                <TabsList className="awake-auth-tabs-list">
+                  <TabsTrigger value="login" className="awake-auth-tabs-trigger">Giriş</TabsTrigger>
+                  <TabsTrigger value="signup" className="awake-auth-tabs-trigger">Kayıt ol</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="signup" className="mt-6">
-                <Button type="button" variant="outline" className="w-full" onClick={onGoogle}>
-                  <Chrome className="mr-2 h-4 w-4" /> Google ile kayıt ol
-                </Button>
+                <TabsContent value="login" className="mt-6">
+                  <button type="button" className="awake-auth-btn-outline" onClick={onGoogle}>
+                    <Chrome className="h-4 w-4" aria-hidden /> Google ile devam et
+                  </button>
 
-                <div className="my-4 flex items-center gap-3">
-                  <div className="h-px flex-1 bg-border" />
-                  <span className="text-xs text-muted-foreground">veya</span>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-
-                <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-                  <div className="space-y-2">
-                    <Label htmlFor="email2">E‑posta</Label>
-                    <Input id="email2" type="email" autoComplete="email" {...form.register("email")} />
-                    {form.formState.errors.email ? (
-                      <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
-                    ) : null}
+                  <div className="awake-auth-divider">
+                    <span className="awake-auth-divider-line" />
+                    <span className="awake-auth-divider-text">veya</span>
+                    <span className="awake-auth-divider-line" />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="password2">Şifre</Label>
-                    <Input id="password2" type="password" autoComplete="new-password" {...form.register("password")} />
-                    {form.formState.errors.password ? (
-                      <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
-                    ) : null}
+                  <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+                    <div className="awake-auth-field">
+                      <Label htmlFor="email" className="awake-auth-label">E‑posta</Label>
+                      <Input id="email" type="email" autoComplete="email" className="awake-auth-input" {...form.register("email")} />
+                      {form.formState.errors.email && (
+                        <p className="awake-auth-error">{form.formState.errors.email.message}</p>
+                      )}
+                    </div>
+
+                    <div className="awake-auth-field">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password" className="awake-auth-label">Şifre</Label>
+                        <button type="button" className="awake-auth-forgot-link" onClick={() => setShowForgotPassword(true)}>
+                          Şifremi unuttum
+                        </button>
+                      </div>
+                      <Input id="password" type="password" autoComplete="current-password" className="awake-auth-input" {...form.register("password")} />
+                      {form.formState.errors.password && (
+                        <p className="awake-auth-error">{form.formState.errors.password.message}</p>
+                      )}
+                    </div>
+
+                    {authError && <p className="awake-auth-error" role="alert">{authError}</p>}
+                    <button type="submit" className="awake-auth-btn-primary" disabled={form.formState.isSubmitting}>
+                      {form.formState.isSubmitting ? "Bekleyin…" : "Giriş Yap"}
+                    </button>
+                  </form>
+                </TabsContent>
+
+                <TabsContent value="signup" className="mt-6">
+                  <button type="button" className="awake-auth-btn-outline" onClick={onGoogle}>
+                    <Chrome className="h-4 w-4" aria-hidden /> Google ile kayıt ol
+                  </button>
+
+                  <div className="awake-auth-divider">
+                    <span className="awake-auth-divider-line" />
+                    <span className="awake-auth-divider-text">veya</span>
+                    <span className="awake-auth-divider-line" />
                   </div>
 
-                  {authError ? (
-                    <p className="text-sm text-destructive" role="alert">
-                      {authError}
-                    </p>
-                  ) : null}
-                  <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? "Bekleyin…" : "Kayıt Ol"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                  <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+                    <div className="awake-auth-field">
+                      <Label htmlFor="email2" className="awake-auth-label">E‑posta</Label>
+                      <Input id="email2" type="email" autoComplete="email" className="awake-auth-input" {...form.register("email")} />
+                      {form.formState.errors.email && (
+                        <p className="awake-auth-error">{form.formState.errors.email.message}</p>
+                      )}
+                    </div>
+
+                    <div className="awake-auth-field">
+                      <Label htmlFor="password2" className="awake-auth-label">Şifre</Label>
+                      <Input id="password2" type="password" autoComplete="new-password" className="awake-auth-input" {...form.register("password")} />
+                      {form.formState.errors.password && (
+                        <p className="awake-auth-error">{form.formState.errors.password.message}</p>
+                      )}
+                    </div>
+
+                    {authError && <p className="awake-auth-error" role="alert">{authError}</p>}
+                    <button type="submit" className="awake-auth-btn-primary" disabled={form.formState.isSubmitting}>
+                      {form.formState.isSubmitting ? "Bekleyin…" : "Kayıt Ol"}
+                    </button>
+                  </form>
+                </TabsContent>
+              </Tabs>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

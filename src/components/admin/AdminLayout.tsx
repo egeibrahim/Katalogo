@@ -2,17 +2,17 @@ import { Outlet } from "react-router-dom";
 
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { NewcatalogTopNav } from "@/components/newcatalog/layout/NewcatalogTopNav";
+import { LandingNav } from "@/components/navigation/LandingNav";
 
-/** Üst menü yüksekliği (promo + ana satır) — sidebar ve içerik bu değere göre konumlanır */
-const SITE_TOPNAV_HEIGHT = 88;
+/** Üst menü yüksekliği (LP header) — sidebar ve içerik bu değere göre konumlanır */
+const SITE_TOPNAV_HEIGHT = 64;
 
 export function AdminLayout() {
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-background">
-      {/* Site üst menüsü: sticky yok, kayma olmasın */}
-      <div className="shrink-0 [&_.ru-topnav]:!static">
-        <NewcatalogTopNav />
+      {/* Site üst menüsü: LP menü, sticky yok */}
+      <div className="shrink-0 [&_.landing-header]:!static">
+        <LandingNav />
       </div>
       {/* Admin alanı: kalan yükseklik, kendi içinde scroll */}
       <div

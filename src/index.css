@@ -535,12 +535,25 @@
     color: hsl(var(--primary-foreground));
   }
 
+  /* Topbar landing standardı: tüm menü topbar'ları – şeffaf, scroll'da blur */
+  .topbar-landing-standard {
+    background: transparent !important;
+    border-bottom: 1px solid transparent;
+    transition: background 0.25s ease, backdrop-filter 0.25s ease, border-color 0.25s ease;
+  }
+  .topbar-landing-standard.topbar-landing-standard--scrolled {
+    background: hsl(var(--background) / 0.85) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom-color: hsl(var(--border));
+  }
+
+  /* Topbar: ru-topnav sadece layout (position/z-index); görünüm topbar-landing-standard ile */
+  header.ru-topnav,
   .ru-topnav {
     position: sticky;
     top: 0;
     z-index: 40;
-    background: hsl(var(--background));
-    border-bottom: 1px solid hsl(var(--border));
   }
 
   /* Admin layout: site top nav altında sidebar ve içerik, kayma olmasın */
@@ -2215,5 +2228,18 @@
   max-width: none !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
+}
+
+/* Topbar landing standardı – layer dışı, tüm sayfalarda kesin uygulansın */
+.topbar-landing-standard {
+  background: transparent !important;
+  border-bottom-color: transparent !important;
+  transition: background 0.25s ease, backdrop-filter 0.25s ease, border-color 0.25s ease;
+}
+.topbar-landing-standard.topbar-landing-standard--scrolled {
+  background: hsl(var(--background) / 0.85) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom-color: hsl(var(--border)) !important;
 }
 

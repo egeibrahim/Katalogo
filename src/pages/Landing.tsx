@@ -1,10 +1,8 @@
 import "./landing.css";
 import "./landing-awake.css";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { Logo } from "@/components/Logo";
-import { ArrowRight, Sparkles, Palette, LayoutGrid, FileText, BarChart3, Menu, X } from "lucide-react";
+import { ArrowRight, Sparkles, Palette, LayoutGrid, FileText, BarChart3 } from "lucide-react";
 
 const AWAKE_BASE = "/awake";
 
@@ -16,8 +14,6 @@ const FAQ_ITEMS = [
 
 export default function Landing() {
   usePageMeta({ title: "Katalogo – Ürün kataloğunu tasarla ve yayınla" });
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const services = [
     { icon: Palette, title: "Koleksiyonlar", class: "landing-card--purple" },
@@ -51,35 +47,7 @@ export default function Landing() {
 
   return (
     <div className="landing-page" data-landing>
-      {/* Header – Awake: fixed, logo img, pill nav + mobile hamburger */}
-      <header className="landing-header">
-        <div className="landing-header-inner">
-          <Link to="/" className="landing-logo" onClick={closeMobileMenu} aria-label="Katalogo">
-            <Logo asLink={false} />
-          </Link>
-          <button
-            type="button"
-            className="landing-nav-toggle"
-            onClick={() => setMobileMenuOpen((v) => !v)}
-            aria-expanded={mobileMenuOpen}
-            aria-label="Menü"
-          >
-            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
-          <nav className={`landing-nav ${mobileMenuOpen ? "landing-nav-open" : ""}`}>
-            <Link to="/#aboutus" onClick={closeMobileMenu}>Hakkımızda</Link>
-            <Link to="/features" onClick={closeMobileMenu}>Özellikler</Link>
-            <Link to="/#work" onClick={closeMobileMenu}>İşler</Link>
-            <Link to="/#pricing" onClick={closeMobileMenu}>Fiyat</Link>
-            <Link to="/auth" className="landing-cta" onClick={closeMobileMenu}>Giriş</Link>
-          </nav>
-        </div>
-        {mobileMenuOpen && (
-          <div className="landing-nav-overlay" onClick={closeMobileMenu} aria-hidden />
-        )}
-      </header>
-
-      {/* Banner – gradient blob, h1 + em, CTA, avatars + Trusted */}
+      {/* Üst menü AppLayout içinde NewcatalogTopNav ile tek menü */}
       <section className="landing-hero">
         <div className="landing-hero-inner landing-section-inner">
           <h1>
@@ -89,7 +57,7 @@ export default function Landing() {
             Katalogo ile küçük işletmeler ürün kataloğunu tek yerden yönetir; stratejiden yayına kadar rehberlik ederiz.
           </p>
           <div className="landing-btn-wrap">
-            <Link to="/auth" className="landing-btn-primary">
+            <Link to="/pricing" className="landing-btn-primary">
               Ücretsiz başla
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
@@ -161,7 +129,7 @@ export default function Landing() {
           <div className="landing-cta-bar">
             <h3>İşlerimizi inceleyin. Yaratıcı yolculuğa birlikte başlayalım.</h3>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", justifyContent: "center" }}>
-              <Link to="/auth" className="landing-btn-white">
+              <Link to="/pricing" className="landing-btn-white">
                 Hemen başla
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
@@ -275,7 +243,7 @@ export default function Landing() {
             <div>
               <h3>Hazır mısın?</h3>
               <p className="landing-muted">Katalogo ile bugün başla.</p>
-              <Link to="/auth" className="landing-link-blue landing-mt-3">
+              <Link to="/pricing" className="landing-link-blue landing-mt-3">
                 Ücretsiz başla
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>

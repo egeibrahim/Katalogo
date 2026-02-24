@@ -1,0 +1,407 @@
+/**
+ * Awake template pricing birebir: 2 kart yan yana, sol = plan + fiyat + CTA, sağ = Özellikler.
+ * Renkler: birinci kart sarı (warning), ikinci kart primary (mor/koyu).
+ */
+.landing-page {
+  --awake-warning: #f5d547;
+  --awake-warning-dark: #1B1D1E;
+}
+
+/* Section */
+.awake-pricing-section {
+  padding: 4rem 1.25rem 5rem;
+  width: 100%;
+}
+.awake-pricing-container {
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+/* Başlık */
+.awake-pricing-header {
+  margin-bottom: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.awake-pricing-title {
+  margin: 0 0 1.25rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 500;
+  color: var(--awake-dark, #1B1D1E);
+  text-align: center;
+  line-height: 1.3;
+}
+.landing-page .awake-pricing-title .font-instrument {
+  font-family: "Instrument Serif", serif;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Aylık / Yıllık toggle – animasyonlu */
+.awake-pricing-toggle-wrap {
+  position: relative;
+  display: inline-flex;
+  padding: 4px;
+  background: var(--awake-gray-100, #F4F4F4);
+  border-radius: 50rem;
+  margin: 0 auto;
+}
+.awake-pricing-toggle-btn {
+  position: relative;
+  z-index: 1;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--awake-muted, #767778);
+  background: transparent;
+  border: none;
+  border-radius: 50rem;
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+.awake-pricing-toggle-btn:hover {
+  color: var(--awake-dark, #1B1D1E);
+}
+.awake-pricing-toggle-btn--active {
+  color: var(--awake-dark, #1B1D1E);
+}
+.awake-pricing-toggle-slider {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  height: calc(100% - 8px);
+  background: var(--awake-white, #fff);
+  border-radius: 50rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+}
+.awake-pricing-toggle-slider[data-active="yearly"] {
+  transform: translateX(100%);
+}
+
+/* Kart giriş animasyonu (AOS fade-up benzeri) */
+@keyframes awake-pricing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 4 kart: 2x2 grid */
+.awake-pricing-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: stretch;
+}
+@media (max-width: 991px) {
+  .awake-pricing-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Kart */
+.awake-pricing-card {
+  border-radius: 0.5rem;
+  overflow: hidden;
+  animation: awake-pricing-fade-up 0.6s ease-out forwards;
+}
+.awake-pricing-card:nth-child(1) { animation-delay: 0.05s; opacity: 0; }
+.awake-pricing-card:nth-child(2) { animation-delay: 0.15s; opacity: 0; }
+.awake-pricing-card:nth-child(3) { animation-delay: 0.25s; opacity: 0; }
+.awake-pricing-card:nth-child(4) { animation-delay: 0.35s; opacity: 0; }
+.awake-pricing-card--warning {
+  background: var(--awake-warning);
+  color: var(--awake-warning-dark);
+}
+.awake-pricing-card--primary {
+  background: var(--awake-primary, #4928FD);
+  color: var(--awake-white, #fff);
+}
+.awake-pricing-card--free {
+  background: var(--awake-white, #fff);
+  color: var(--awake-dark, #1B1D1E);
+  border: 1px solid var(--awake-gray-200, #e8e8e8);
+}
+.awake-pricing-card--dark {
+  background: var(--awake-gray-100, #F4F4F4);
+  border: 1px solid var(--awake-gray-200, #e8e8e8);
+  color: #1B1D1E;
+}
+
+.awake-pricing-card-body {
+  padding: 2rem 1.5rem;
+}
+@media (min-width: 768px) {
+  .awake-pricing-card-body {
+    padding: 2.5rem 2rem;
+  }
+}
+
+/* Kart içi: 2 sütun (sol = plan + fiyat + CTA, sağ = özellikler) */
+.awake-pricing-card-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  min-height: 100%;
+}
+@media (max-width: 767px) {
+  .awake-pricing-card-inner {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+/* Sol sütun */
+.awake-pricing-card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-right: 0;
+}
+@media (min-width: 768px) {
+  .awake-pricing-card-left {
+    padding-right: 2rem;
+    border-right: 1px solid rgba(27, 29, 30, 0.1);
+  }
+  .awake-pricing-card--primary .awake-pricing-card-left,
+  .awake-pricing-card--dark .awake-pricing-card-left {
+    border-right-color: rgba(27, 29, 30, 0.12);
+  }
+  .awake-pricing-card--free .awake-pricing-card-left {
+    border-right-color: var(--awake-gray-200, #e8e8e8);
+  }
+}
+
+.awake-pricing-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.awake-pricing-badge {
+  display: inline-block;
+  width: fit-content;
+  padding: 0.35rem 1rem;
+  font-size: 1.25rem;
+  font-weight: 500;
+  background: var(--awake-dark, #1B1D1E);
+  color: var(--awake-white, #fff);
+  border-radius: 50rem;
+}
+.awake-pricing-card--primary .awake-pricing-badge,
+.awake-pricing-card--dark .awake-pricing-badge {
+  background: var(--awake-dark, #1B1D1E);
+  color: var(--awake-white, #fff);
+}
+.awake-pricing-card--free .awake-pricing-badge {
+  background: var(--awake-dark);
+  color: var(--awake-white);
+}
+.awake-pricing-desc {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: inherit;
+  opacity: 0.9;
+}
+.awake-pricing-card--warning .awake-pricing-desc {
+  color: var(--awake-warning-dark);
+}
+
+.awake-pricing-card-price-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.awake-pricing-price {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: inherit;
+  letter-spacing: -0.02em;
+}
+.awake-pricing-period {
+  font-size: 1.25rem;
+  font-weight: 400;
+  opacity: 0.85;
+  margin-left: 0.15rem;
+}
+
+/* CTA buton – awake-export _override.scss birebir: .btn .btn-text .btn-icon */
+.awake-pricing-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 9999px;
+  overflow: hidden;
+  text-decoration: none;
+  width: fit-content;
+  padding: 12px 42px 12px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1B1D1E;
+  transition: background 0.2s ease, border-color 0.2s;
+}
+.awake-pricing-btn:hover {
+  background: #f4f4f4;
+  border-color: #1B1D1E;
+}
+.awake-pricing-btn-text {
+  position: relative;
+  z-index: 1;
+  color: #1B1D1E;
+  transition: transform 0.2s ease-in-out, color 0.2s ease-in-out;
+  padding-inline-end: 10px;
+}
+.awake-pricing-btn:hover .awake-pricing-btn-text {
+  color: #1B1D1E;
+  transform: translateX(2.5rem);
+}
+.awake-pricing-btn-icon {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translate(-120%, -50%);
+  z-index: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: #1B1D1E;
+  color: #fff;
+  transition: transform 0.4s ease, left 0.4s ease, background 0.2s, color 0.2s;
+}
+.awake-pricing-btn:hover .awake-pricing-btn-icon {
+  left: 0;
+  color: #fff;
+  background: #1B1D1E;
+  transform: translate(20%, -50%) rotate(45deg);
+}
+.awake-pricing-btn-icon-svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+/* Kişisel / Marka: sadece ikon, ortada */
+.awake-pricing-btn--icon-only {
+  padding: 12px 20px;
+}
+.awake-pricing-btn--icon-only .awake-pricing-btn-icon {
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.awake-pricing-btn--icon-only:hover .awake-pricing-btn-icon {
+  left: 0;
+  transform: translate(20%, -50%) rotate(45deg);
+}
+.awake-pricing-btn--dark,
+.awake-pricing-btn--white {
+  background: #fff;
+  border-color: #e8e8e8;
+  color: #1B1D1E;
+}
+.awake-pricing-btn--dark:hover,
+.awake-pricing-btn--white:hover {
+  background: #f4f4f4;
+  border-color: #1B1D1E;
+}
+.awake-pricing-btn--dark .awake-pricing-btn-icon,
+.awake-pricing-btn--white .awake-pricing-btn-icon {
+  background: #1B1D1E;
+  color: #fff;
+}
+.awake-pricing-btn--dark:hover .awake-pricing-btn-icon,
+.awake-pricing-btn--white:hover .awake-pricing-btn-icon {
+  left: 0;
+  transform: translate(20%, -50%) rotate(45deg);
+  background: #1B1D1E;
+  color: #fff;
+}
+
+/* Sağ sütun – Özellikler */
+.awake-pricing-card-right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .awake-pricing-card--warning .awake-pricing-card-right {
+    padding-left: 1rem;
+  }
+  .awake-pricing-card--primary .awake-pricing-card-right {
+    padding-left: 1rem;
+  }
+}
+.awake-pricing-features-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.awake-pricing-features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.awake-pricing-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0;
+}
+.awake-pricing-feature-icon {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.1rem;
+  color: inherit;
+}
+.awake-pricing-feature-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: inherit;
+}
+.awake-pricing-card--warning .awake-pricing-feature-icon,
+.awake-pricing-card--warning .awake-pricing-feature-text {
+  color: var(--awake-warning-dark);
+}
+.awake-pricing-card--primary .awake-pricing-feature-icon,
+.awake-pricing-card--primary .awake-pricing-feature-text,
+.awake-pricing-card--dark .awake-pricing-feature-icon,
+.awake-pricing-card--dark .awake-pricing-feature-text {
+  color: #1B1D1E;
+}
+.awake-pricing-card--free .awake-pricing-feature-icon,
+.awake-pricing-card--free .awake-pricing-feature-text {
+  color: var(--awake-dark);
+}
+.awake-pricing-card--free .awake-pricing-desc {
+  color: var(--awake-muted, #767778);
+}
+
+/* Alt not */
+.awake-pricing-footer-note {
+  margin: 2rem 0 0;
+  font-size: 0.875rem;
+  color: var(--awake-muted, #767778);
+  text-align: center;
+  line-height: 1.5;
+}

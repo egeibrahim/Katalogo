@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -34,6 +34,15 @@ export function AdminTopbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { session, role, isAdmin, signOut } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   const meta = useMemo(() => {
     const hit = TITLES.find((t) => location.pathname.startsWith(t.prefix));
     return hit ?? { title: "Admin", subtitle: "" };
@@ -43,7 +52,7 @@ export function AdminTopbar() {
   const initials = (email || "U").slice(0, 2).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
+    <header className={`sticky top-0 z-40 border-b topbar-landing-standard ${scrolled ? "topbar-landing-standard--scrolled" : ""}`}>
       <div className="flex h-14 items-center gap-3 px-4">
         {/* IMPORTANT: single global trigger lives here */}
         <SidebarTrigger />

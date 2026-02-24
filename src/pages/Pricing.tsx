@@ -1,114 +1,188 @@
 import "./landing.css";
 import "./landing-awake.css";
-import { Link } from "react-router-dom";
+import "./pricing-awake.css";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { useI18n } from "@/lib/i18n/LocaleProvider";
-import { Check, ArrowRight } from "lucide-react";
+import { Check, ArrowUpRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+type BillingPeriod = "monthly" | "yearly";
 
 export default function Pricing() {
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const navigate = useNavigate();
   usePageMeta({ title: "Fiyat – Katalogo" });
-  const { t } = useI18n();
+
+  async function handleStripeCheckout(planId: "individual" | "brand") {
+    setCheckoutLoading(planId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: { plan: planId, interval: billingPeriod },
+      });
+      if (error) throw error;
+      const url = (data as { url?: string })?.url;
+      if (url) window.location.href = url;
+      else throw new Error("Ödeme sayfası alınamadı");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ödeme başlatılamadı");
+    } finally {
+      setCheckoutLoading(null);
+    }
+  }
 
   const plans = [
     {
       name: "Free",
-      description: "Günde 2 indirme, sadece Design Now.",
-      price: "Ücretsiz",
-      period: "",
-      features: [
-        "Design Now ile tasarım",
-        "Günde 2 mockup indirme",
-        "Katalog görüntüleme",
-      ],
+      description: "İhtiyaç halinde kullanım için ideal.",
+      priceMonthly: null as string | null,
+      priceYearly: null as string | null,
+      priceLabel: "Ücretsiz",
       cta: "Ücretsiz başla",
       href: "/auth",
-      highlighted: false,
+      features: [
+        "Tüm kataloğa erişim",
+        "Designer ile mockup oluştur",
+        "Günlük 2 adet indirme",
+      ],
+      variant: "free" as const,
     },
     {
       name: "Kişisel",
-      description: "Sınırsız mockup, sadece Design Now.",
-      price: "$7",
-      period: "/ay",
-      features: [
-        "Free plan özellikleri",
-        "Sınırsız mockup indirme",
-        "Tasarımcı erişimi",
-      ],
+      description: "Düzenli ürün tasarlayanlar için sınırsız erişim planı.",
+      priceMonthly: "$7",
+      priceYearly: "$70",
+      priceLabel: null,
       cta: "Başla",
       href: "/auth",
-      highlighted: false,
+      features: [
+        "Tüm kataloğa erişim",
+        "Sınırsız Designer kullanımı",
+        "Sınırsız mockup indirme",
+      ],
+      variant: "warning" as const,
     },
     {
       name: "Marka",
-      description: "Kendi kataloğu ve teklif yönetimi.",
-      price: "$20",
-      period: "/ay",
-      features: [
-        "Kişisel plan özellikleri",
-        "Marka sayfası (özel URL)",
-        "Sepet ve teklif talepleri",
-        "Kendi kataloğunu oluşturma",
-      ],
+      description: "Kendi ürün kataloğunuzu oluşturun, müşteri tekliflerini yönetin. Özel marka sayfanızla satışı büyütün.",
+      priceMonthly: "$20",
+      priceYearly: "$200",
+      priceLabel: null,
       cta: "Marka planı",
       href: "/auth",
-      highlighted: true,
+      features: [
+        "Markanıza ait web kataloğu",
+        "Özel marka sayfası (kendi URL adınız)",
+        "Müşterilerin ürünlerinizle mockup oluşturması",
+        "Müşterilerden teklif alma",
+      ],
+      variant: "primary" as const,
     },
     {
       name: "Kurumsal",
-      description: "Özel alan adı ve öncelikli destek.",
-      price: "Teklif",
-      period: "",
-      features: [
-        "Marka plan özellikleri",
-        "Özel alan adı (custom domain)",
-        "Öncelikli destek",
-        "Gelişmiş ihtiyaçlar için iletişim",
-      ],
+      description: "Kurumsal ihtiyaçlarınız için özel alan adı, markaya özel tasarım ve entegre ödeme çözümleri.",
+      priceMonthly: null,
+      priceYearly: null,
+      priceLabel: "Teklif",
       cta: "İletişime geç",
       href: "/auth",
-      highlighted: false,
+      stripePlanId: null as "individual" | "brand" | null,
+      features: [
+        "Marka planındaki tüm özellikler dahil",
+        "Kurumsal kimliğinize uygun özel alan adı (custom domain)",
+        "Markanıza özel web tasarım ve arayüz",
+        "Entegre ödeme altyapısı",
+      ],
+      variant: "dark" as const,
     },
   ];
 
   return (
     <div className="landing-page" data-landing>
-      <section className="landing-section ru-max w-full" style={{ paddingTop: "2rem", paddingBottom: "4rem" }}>
-        <div className="landing-section-inner">
-          <h1 className="landing-title-center" style={{ marginBottom: "0.5rem" }}>
-            {t("pages.pricing.title")}
-          </h1>
-          <p className="landing-muted landing-text-center" style={{ maxWidth: 480, margin: "0 auto 3rem" }}>
-            {t("pages.pricing.subtitle")}
-          </p>
-
-          <div className="landing-pricing-grid">
+      <section className="awake-pricing-section" id="pricing">
+        <div className="awake-pricing-container">
+          <div className="awake-pricing-header">
+            <h2 className="awake-pricing-title">
+              İhtiyacına uygun planı seç
+            </h2>
+            <div className="awake-pricing-toggle-wrap">
+              <button
+                type="button"
+                className={`awake-pricing-toggle-btn ${billingPeriod === "monthly" ? "awake-pricing-toggle-btn--active" : ""}`}
+                onClick={() => setBillingPeriod("monthly")}
+              >
+                Aylık
+              </button>
+              <button
+                type="button"
+                className={`awake-pricing-toggle-btn ${billingPeriod === "yearly" ? "awake-pricing-toggle-btn--active" : ""}`}
+                onClick={() => setBillingPeriod("yearly")}
+              >
+                Yıllık
+              </button>
+              <span className="awake-pricing-toggle-slider" data-active={billingPeriod} />
+            </div>
+          </div>
+          <div className="awake-pricing-row">
             {plans.map((plan) => (
               <div
                 key={plan.name}
-                className={`landing-pricing-card ${plan.highlighted ? "landing-pricing-card--highlight" : ""}`}
+                className={`awake-pricing-card awake-pricing-card--${plan.variant}`}
               >
-                {plan.highlighted && <span className="landing-pricing-badge">Önerilen</span>}
-                <h2 className="landing-pricing-name">{plan.name}</h2>
-                <p className="landing-pricing-desc">{plan.description}</p>
-                <div className="landing-pricing-price">
-                  {plan.price}
-                  {plan.period && <span className="landing-pricing-period">{plan.period}</span>}
+                <div className="awake-pricing-card-body">
+                  <div className="awake-pricing-card-inner">
+                    <div className="awake-pricing-card-left">
+                      <div className="awake-pricing-card-head">
+                        <span className="awake-pricing-badge">{plan.name}</span>
+                        <p className="awake-pricing-desc">{plan.description}</p>
+                      </div>
+                      <div className="awake-pricing-card-price-block">
+                        {plan.stripePlanId ? (
+                          <button
+                            type="button"
+                            className={`awake-pricing-btn ${plan.variant === "free" ? "awake-pricing-btn--dark" : "awake-pricing-btn--white"}`}
+                            onClick={() => handleStripeCheckout(plan.stripePlanId!)}
+                            disabled={!!checkoutLoading}
+                          >
+                            <span className="awake-pricing-btn-text">
+                              {billingPeriod === "monthly" ? `${plan.priceMonthly}/ay` : `${plan.priceYearly}/yıl`}
+                            </span>
+                            <span className="awake-pricing-btn-icon">
+                              <ArrowUpRight className="awake-pricing-btn-icon-svg" aria-hidden />
+                            </span>
+                          </button>
+                        ) : (
+                          <Link to={plan.href} className={`awake-pricing-btn ${plan.variant === "free" ? "awake-pricing-btn--dark" : "awake-pricing-btn--white"}`}>
+                            <span className="awake-pricing-btn-text">
+                              {plan.priceLabel ? plan.cta : billingPeriod === "monthly" ? `${plan.priceMonthly}/ay — ${plan.cta}` : `${plan.priceYearly}/yıl — ${plan.cta}`}
+                            </span>
+                            <span className="awake-pricing-btn-icon">
+                              <ArrowUpRight className="awake-pricing-btn-icon-svg" aria-hidden />
+                            </span>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                    <div className="awake-pricing-card-right">
+                      <h6 className="awake-pricing-features-title">Özellikler</h6>
+                      <ul className="awake-pricing-features-list">
+                        {plan.features.map((feature) => (
+                          <li key={feature} className="awake-pricing-feature">
+                            <Check className="awake-pricing-feature-icon" aria-hidden />
+                            <p className="awake-pricing-feature-text">{feature}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
-                <ul className="landing-pricing-features">
-                  {plan.features.map((feature) => (
-                    <li key={feature}>
-                      <Check className="landing-pricing-check" aria-hidden />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  to={plan.href}
-                  className={plan.highlighted ? "landing-btn-primary landing-pricing-cta" : "landing-pricing-cta-outline"}
-                >
-                  {plan.cta}
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Link>
               </div>
             ))}
           </div>
