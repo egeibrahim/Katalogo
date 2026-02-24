@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       console.error("pending_plan update failed:", dbErr);
     }
 
-    const stripe = new Stripe(stripeSecret, { apiVersion: "2024-11-20" });
+    const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" });
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],

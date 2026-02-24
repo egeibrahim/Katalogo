@@ -384,7 +384,9 @@
   color: var(--awake-warning-dark);
 }
 .awake-pricing-card--primary .awake-pricing-feature-icon,
-.awake-pricing-card--primary .awake-pricing-feature-text,
+.awake-pricing-card--primary .awake-pricing-feature-text {
+  color: #fff;
+}
 .awake-pricing-card--dark .awake-pricing-feature-icon,
 .awake-pricing-card--dark .awake-pricing-feature-text {
   color: #1B1D1E;
