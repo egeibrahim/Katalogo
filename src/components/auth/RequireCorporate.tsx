@@ -55,7 +55,13 @@ export function RequireCorporate({ children }: RequireCorporateProps) {
 
     (async () => {
       const firstSession = await supabase.auth.getSession();
-      const token = firstSession.data.session?.access_token;
+      let activeSession = firstSession.data.session;
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (!activeSession || ((activeSession.expires_at ?? 0) <= nowSec + 30)) {
+        const refreshed = await supabase.auth.refreshSession();
+        if (!refreshed.error && refreshed.data.session) activeSession = refreshed.data.session;
+      }
+      const token = activeSession?.access_token;
       const first = await supabase.functions.invoke("create-checkout-session", {
         body: { plan, interval },
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,

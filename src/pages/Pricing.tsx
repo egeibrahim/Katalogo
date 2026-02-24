@@ -105,7 +105,14 @@ export default function Pricing() {
     setCheckoutLoading(planId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      let activeSession = session;
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (!activeSession || ((activeSession.expires_at ?? 0) <= nowSec + 30)) {
+        const refreshed = await supabase.auth.refreshSession();
+        if (!refreshed.error && refreshed.data.session) activeSession = refreshed.data.session;
+      }
+
+      if (!activeSession) {
         // Auth sayfası state kaybederse de checkout tetiklensin diye yedekle
         try {
           sessionStorage.setItem(
@@ -127,7 +134,7 @@ export default function Pricing() {
       }
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: { plan: planId, interval: billingPeriod },
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${activeSession.access_token}` },
       });
       if (error) {
         const errBody = data as { error?: string } | null;
