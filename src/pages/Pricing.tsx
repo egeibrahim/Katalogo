@@ -1,20 +1,105 @@
 import "./landing.css";
 import "./landing-awake.css";
 import "./pricing-awake.css";
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Check, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const AUTH_PENDING_CHECKOUT_KEY = "auth_pending_checkout";
+
 type BillingPeriod = "monthly" | "yearly";
+
+async function getFunctionErrorMessage(error: unknown, fallback = "Ödeme sayfası açılamadı"): Promise<string> {
+  if (error instanceof Error && error.message && error.message !== "Edge Function returned a non-2xx status code") {
+    return error.message;
+  }
+
+  // Supabase FunctionsHttpError: context çoğunlukla Response taşır.
+  if (typeof error === "object" && error !== null && "context" in error) {
+    const context = (error as { context?: unknown }).context;
+    if (context instanceof Response) {
+      try {
+        const cloned = context.clone();
+        const json = (await cloned.json().catch(() => null)) as { error?: string; message?: string } | null;
+        const fromJson = json?.error ?? json?.message;
+        if (fromJson) return fromJson;
+      } catch {
+        /* ignore */
+      }
+      try {
+        const text = await context.text();
+        if (text) return text;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
+function isAuthErrorMessage(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("unauthorized") ||
+    lower.includes("invalid jwt") ||
+    lower.includes("jwt") ||
+    lower.includes("token")
+  );
+}
 
 export default function Pricing() {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const handledResult = useRef(false);
   usePageMeta({ title: "Fiyat – Katalogo" });
+
+  // Stripe success/cancel dönüşünde pending_plan temizle
+  useEffect(() => {
+    const success = searchParams.get("success") === "true";
+    const canceled = searchParams.get("canceled") === "true";
+    if ((!success && !canceled) || handledResult.current) return;
+    handledResult.current = true;
+
+    try {
+      sessionStorage.removeItem(AUTH_PENDING_CHECKOUT_KEY);
+    } catch {
+      /* ignore */
+    }
+
+    if (success) {
+      toast.success("Ödeme başarıyla tamamlandı. Panele erişebilirsiniz.");
+    } else if (canceled) {
+      toast.info("Ödeme iptal edildi. İstediğiniz zaman tekrar deneyebilirsiniz.");
+    }
+
+    const clearPending = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await supabase.functions.invoke("clear-pending-plan");
+        }
+      } catch {
+        /* Sessizce yoksay – kritik değil */
+      }
+    };
+    clearPending();
+
+    // URL'den success/cancel parametrelerini temizle
+    if (window.history.replaceState) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("success");
+      url.searchParams.delete("canceled");
+      url.searchParams.delete("session_id");
+      window.history.replaceState({}, "", url.pathname);
+    }
+  }, [searchParams]);
 
   async function handleStripeCheckout(planId: "individual" | "brand") {
     setCheckoutLoading(planId);
@@ -24,37 +109,76 @@ export default function Pricing() {
         // Auth sayfası state kaybederse de checkout tetiklensin diye yedekle
         try {
           sessionStorage.setItem(
-            "auth_pending_checkout",
+            AUTH_PENDING_CHECKOUT_KEY,
             JSON.stringify({ plan: planId, interval: billingPeriod }),
           );
         } catch {
           /* ignore */
         }
         toast.info("Devam etmek için giriş / kayıt gerekiyor. Yönlendiriliyorsunuz…");
-        navigate("/auth", { state: { from: { pathname: "/pricing" }, pendingPlan: planId, pendingInterval: billingPeriod } });
+        navigate("/auth", {
+          state: {
+            from: { pathname: "/pricing" },
+            pendingPlan: planId,
+            pendingInterval: billingPeriod,
+          },
+        });
         return;
       }
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: { plan: planId, interval: billingPeriod },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      if (error) throw error;
+      if (error) {
+        const errBody = data as { error?: string } | null;
+        const errMsg = errBody?.error ?? await getFunctionErrorMessage(error);
+
+        // Geçersiz/expired JWT durumunda bir kez session yenileyip tekrar dene.
+        if (isAuthErrorMessage(errMsg)) {
+          const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+          const refreshedSession = refreshed?.session;
+          if (!refreshError && refreshedSession) {
+            const retry = await supabase.functions.invoke("create-checkout-session", {
+              body: { plan: planId, interval: billingPeriod },
+              headers: { Authorization: `Bearer ${refreshedSession.access_token}` },
+            });
+            if (!retry.error) {
+              const retryUrl = (retry.data as { url?: string } | null)?.url;
+              if (retryUrl) {
+                window.location.href = retryUrl;
+                return;
+              }
+            }
+          }
+        }
+
+        throw new Error(errMsg);
+      }
       const url = (data as { url?: string })?.url;
       if (url) window.location.href = url;
       else throw new Error("Ödeme sayfası alınamadı");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Ödeme başlatılamadı";
       // Token/oturum sorunu varsa kullanıcıyı auth’a yönlendir
-      if (String(msg).toLowerCase().includes("unauthorized")) {
+      const isAuthIssue = isAuthErrorMessage(String(msg));
+      if (isAuthIssue) {
         try {
           sessionStorage.setItem(
-            "auth_pending_checkout",
+            AUTH_PENDING_CHECKOUT_KEY,
             JSON.stringify({ plan: planId, interval: billingPeriod }),
           );
         } catch {
           /* ignore */
         }
-        toast.error("Oturum doğrulanamadı. Lütfen tekrar giriş yapın.");
-        navigate("/auth", { state: { from: { pathname: "/pricing" }, pendingPlan: planId, pendingInterval: billingPeriod } });
+        toast.error("Oturum süresi dolmuş. Lütfen tekrar giriş yapın.");
+        navigate("/auth", {
+          state: {
+            from: { pathname: "/pricing" },
+            pendingPlan: planId,
+            pendingInterval: billingPeriod,
+            authError: "session_expired",
+          },
+        });
       } else {
         toast.error(msg);
       }

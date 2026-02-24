@@ -1197,6 +1197,8 @@ export type Database = {
       user_memberships: {
         Row: {
           created_at: string
+          pending_interval: string | null
+          pending_plan: string | null
           plan: Database["public"]["Enums"]["membership_plan"]
           status: string
           updated_at: string
@@ -1204,6 +1206,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          pending_interval?: string | null
+          pending_plan?: string | null
           plan?: Database["public"]["Enums"]["membership_plan"]
           status?: string
           updated_at?: string
@@ -1211,6 +1215,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          pending_interval?: string | null
+          pending_plan?: string | null
           plan?: Database["public"]["Enums"]["membership_plan"]
           status?: string
           updated_at?: string

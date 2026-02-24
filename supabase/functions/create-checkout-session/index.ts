@@ -80,6 +80,21 @@ Deno.serve(async (req) => {
     const successUrl = `${siteUrl}/pricing?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${siteUrl}/pricing?canceled=true`;
 
+    // Ödeme tamamlanmadan panele erişimi engellemek için pending_plan/pending_interval kaydet
+    try {
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (serviceRoleKey) {
+        const adminClient = createClient(supabaseUrl, serviceRoleKey);
+        const { error: updateErr } = await adminClient
+          .from("user_memberships")
+          .update({ pending_plan: plan, pending_interval: interval })
+          .eq("user_id", user.id);
+        if (updateErr) console.error("pending_plan update failed:", updateErr.message);
+      }
+    } catch (dbErr) {
+      console.error("pending_plan update failed:", dbErr);
+    }
+
     const stripe = new Stripe(stripeSecret, { apiVersion: "2024-11-20" });
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -97,6 +112,7 @@ Deno.serve(async (req) => {
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
+    console.error("create-checkout-session error:", e);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },

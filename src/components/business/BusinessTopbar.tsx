@@ -39,7 +39,7 @@ export function BusinessTopbar() {
 
   const meta = useMemo(() => {
     const hit = TITLES.find((t) => location.pathname.startsWith(t.prefix));
-    return hit ?? { title: "Business", subtitle: "" };
+    return hit ?? { title: "İş Paneli", subtitle: "" };
   }, [location.pathname]);
 
   const email = session?.user?.email ?? "";

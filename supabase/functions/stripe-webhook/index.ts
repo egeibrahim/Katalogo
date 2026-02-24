@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
 
       if (userId && plan && ALLOWED_PLANS.includes(plan as typeof ALLOWED_PLANS[number])) {
         await admin.from("user_memberships").upsert(
-          { user_id: userId, plan, status: "active" },
+          { user_id: userId, plan, status: "active", pending_plan: null, pending_interval: null },
           { onConflict: "user_id" }
         );
       }
@@ -62,14 +62,14 @@ Deno.serve(async (req) => {
 
       if (event.type === "customer.subscription.deleted" || sub.status === "canceled" || sub.status === "unpaid") {
         await admin.from("user_memberships").upsert(
-          { user_id: userId, plan: "free", status: "canceled" },
+          { user_id: userId, plan: "free", status: "canceled", pending_plan: null, pending_interval: null },
           { onConflict: "user_id" }
         );
       } else if (sub.status === "active") {
         const plan = sub.metadata?.plan?.toLowerCase();
         if (plan && ALLOWED_PLANS.includes(plan as typeof ALLOWED_PLANS[number])) {
           await admin.from("user_memberships").upsert(
-            { user_id: userId, plan, status: "active" },
+            { user_id: userId, plan, status: "active", pending_plan: null, pending_interval: null },
             { onConflict: "user_id" }
           );
         }

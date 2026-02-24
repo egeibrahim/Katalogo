@@ -31,7 +31,7 @@ export function BusinessSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>
-            <span className="truncate">Business Panel</span>
+            <span className="truncate">İş Paneli</span>
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

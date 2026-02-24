@@ -2,3 +2,6 @@ project_id = "sehxgspdsvderseyvdmz"
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.signup-gmail-no-verify]
+verify_jwt = false

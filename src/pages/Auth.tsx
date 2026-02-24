@@ -45,6 +45,7 @@ type LocationState = {
   from?: { pathname?: string };
   pendingPlan?: "individual" | "brand";
   pendingInterval?: "monthly" | "yearly";
+  authError?: "session_expired";
 };
 
 const AUTH_PENDING_CHECKOUT_KEY = "auth_pending_checkout";
@@ -76,6 +77,16 @@ function clearPendingCheckoutFromStorage() {
   } catch {
     /* ignore */
   }
+}
+
+function isAuthIssue(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("unauthorized") ||
+    lower.includes("invalid jwt") ||
+    lower.includes("jwt") ||
+    lower.includes("token")
+  );
 }
 
 export default function Auth() {
@@ -112,6 +123,13 @@ export default function Auth() {
     setAuthError(null);
   }, [tab]);
 
+  useEffect(() => {
+    const state = location.state as LocationState | null;
+    if (state?.authError === "session_expired") {
+      setAuthError("Oturum süresi doldu. Lütfen tekrar giriş yapın.");
+    }
+  }, [location.state]);
+
   // Plan seçiliyse sessionStorage’a yaz (state kaybolmasın diye)
   useEffect(() => {
     if (st?.pendingPlan && st?.pendingInterval) {
@@ -127,23 +145,51 @@ export default function Auth() {
       const interval = fromState?.pendingInterval ?? stored?.interval ?? "monthly";
 
       if (plan) {
-        const runCheckout = () => {
-          supabase.functions
-            .invoke("create-checkout-session", { body: { plan, interval } })
-            .then(({ data, error }) => {
-              clearPendingCheckoutFromStorage();
-              if (error) {
-                toast({ title: "Ödeme sayfası açılamadı", description: error.message, variant: "destructive" });
-                navigate("/pricing", { replace: true });
-                return;
+        const runCheckout = async () => {
+          const firstSession = await supabase.auth.getSession();
+          const token = firstSession.data.session?.access_token;
+          const first = await supabase.functions.invoke("create-checkout-session", {
+            body: { plan, interval },
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          });
+          if (!first.error) {
+            clearPendingCheckoutFromStorage();
+            const firstUrl = (first.data as { url?: string } | null)?.url;
+            if (firstUrl) {
+              window.location.href = firstUrl;
+              return;
+            }
+            toast({ title: "Ödeme sayfası alınamadı", variant: "destructive" });
+            navigate("/pricing", { replace: true });
+            return;
+          }
+
+          // JWT expired/invalid ise bir kez yenileyip tekrar dene.
+          const firstMessage = (first.error as { message?: string })?.message ?? "";
+          if (isAuthIssue(firstMessage)) {
+            const refreshed = await supabase.auth.refreshSession();
+            if (!refreshed.error && refreshed.data.session) {
+              const retry = await supabase.functions.invoke("create-checkout-session", {
+                body: { plan, interval },
+                headers: { Authorization: `Bearer ${refreshed.data.session.access_token}` },
+              });
+              if (!retry.error) {
+                clearPendingCheckoutFromStorage();
+                const retryUrl = (retry.data as { url?: string } | null)?.url;
+                if (retryUrl) {
+                  window.location.href = retryUrl;
+                  return;
+                }
               }
-              const url = (data as { url?: string })?.url;
-              if (url) window.location.href = url;
-              else {
-                toast({ title: "Ödeme sayfası alınamadı", variant: "destructive" });
-                navigate("/pricing", { replace: true });
-              }
-            });
+            }
+          }
+
+          toast({
+            title: "Ödeme sayfası açılamadı",
+            description: firstMessage || "Lütfen tekrar giriş yapın.",
+            variant: "destructive",
+          });
+          navigate("/pricing", { replace: true });
         };
         requestAnimationFrame(() => setTimeout(runCheckout, 150));
         return;

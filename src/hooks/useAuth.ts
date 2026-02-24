@@ -12,6 +12,8 @@ interface AuthState {
   isAdmin: boolean;
 }
 
+type ErrorWithMessage = { message?: string };
+
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -120,8 +122,46 @@ export function useAuth() {
     // Email confirmation açıksa, kullanıcı doğrulama linkinden döndüğünde Auth sayfası
     // pending checkout (sessionStorage) varsa Stripe yönlendirmesini tetikleyebilsin.
     const redirectUrl = `${window.location.origin}/auth`;
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const domain = normalizedEmail.split("@")[1] ?? "";
+    const isGmail = domain === "gmail.com" || domain === "googlemail.com";
+
+    // Gmail kullanıcılarında e-posta doğrulamasını atla:
+    // 1) Edge Function ile confirmed user oluştur
+    // 2) Aynı bilgilerle normal login yap
+    if (isGmail) {
+      const { data: createData, error: createError } = await supabase.functions.invoke("signup-gmail-no-verify", {
+        body: { email: normalizedEmail, password },
+      });
+      if (createError) {
+        const maybeBody = createData as { error?: string; message?: string } | null;
+        const message =
+          maybeBody?.error ||
+          maybeBody?.message ||
+          (createError as ErrorWithMessage).message ||
+          "Kayıt sırasında bir hata oluştu.";
+        return { error: { message }, data: null, needsEmailConfirmation: false };
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+      if (signInError) {
+        return { error: signInError, data: null, needsEmailConfirmation: false };
+      }
+
+      const sessionData = await supabase.auth.getSession();
+      return {
+        error: null,
+        data: { user: sessionData.data.session?.user ?? null, session: sessionData.data.session ?? null },
+        needsEmailConfirmation: false,
+      };
+    }
+
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
       options: {
         emailRedirectTo: redirectUrl,
