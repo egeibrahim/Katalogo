@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 type CatalogRow = {
   id: string;
@@ -14,6 +15,7 @@ type CatalogRow = {
 };
 
 export default function PublicCatalogList() {
+  const { t } = useI18n();
   const { data: catalogs, isLoading } = useQuery({
     queryKey: ["public", "catalogs", "list"],
     queryFn: async (): Promise<CatalogRow[]> => {
@@ -29,8 +31,8 @@ export default function PublicCatalogList() {
   });
 
   usePageMeta({
-    title: "Markalar & Kataloglar",
-    description: "Published brand catalogs. Browse product catalogs.",
+    title: t("publicCatalogList.title"),
+    description: t("publicCatalogList.subtitle"),
   });
 
   if (isLoading) {
@@ -38,7 +40,7 @@ export default function PublicCatalogList() {
       <div className="p-6">
         <Card>
           <CardHeader>
-            <CardTitle>Loading…</CardTitle>
+            <CardTitle>{t("common.loading")}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -50,19 +52,19 @@ export default function PublicCatalogList() {
   return (
     <div className="p-4 md:p-8">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-foreground md:text-3xl">Markalar & Kataloglar</h1>
+        <h1 className="text-2xl font-semibold text-foreground md:text-3xl">{t("publicCatalogList.title")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Published catalogs on the site. This page and catalog links can also be found via Google.
+          {t("publicCatalogList.subtitle")}
         </p>
       </header>
 
       {list.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>No catalogs yet</CardTitle>
+            <CardTitle>{t("publicCatalogList.noCatalogs")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">There are no published catalogs.</p>
+            <p className="text-sm text-muted-foreground">{t("publicCatalogList.noCatalogsDesc")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -94,7 +96,7 @@ export default function PublicCatalogList() {
                 </div>
                 <div className="p-3">
                   <h2 className="font-semibold text-foreground">{c.name}</h2>
-                  <span className="text-xs text-muted-foreground">View catalog</span>
+                  <span className="text-xs text-muted-foreground">{t("publicCatalogList.viewCatalog")}</span>
                 </div>
               </Link>
             </li>

@@ -8,7 +8,7 @@ const STORAGE_KEY = "app_locale";
 type I18nContextValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
-  t: (key: MessageKey) => string;
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string;
 };
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -39,7 +39,11 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     return {
       locale,
       setLocale: setLocaleState,
-      t: (key) => dict[key] ?? key,
+      t: (key, vars) => {
+        const template = dict[key] ?? key;
+        if (!vars) return template;
+        return template.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ""));
+      },
     };
   }, [locale]);
 

@@ -48,13 +48,12 @@ export function NewcatalogTopNav() {
 
   /* Tek menü: landing + dashboard linkleri */
   const NAV: NavItem[] = [
-    { label: "Ana Sayfa", to: "/" },
-    { label: "Hakkımızda", to: "/#aboutus" },
-    { label: t("nav.features"), to: "/features" },
-    { label: "İşler", to: "/#work" },
+    { label: t("nav.home"), to: "/" },
+    { label: t("nav.about"), to: "/#aboutus" },
+    { label: t("nav.works"), to: "/#work" },
     { label: t("nav.pricing"), to: "/pricing" },
-    { label: t("nav.catalog"), to: "/catalog/all" },
-    { label: "Markalar", to: "/brands" },
+    ...(user ? [{ label: t("nav.catalog"), to: "/catalog/all" }] : []),
+    { label: t("nav.brands"), to: "/brands" },
     { label: t("nav.blog"), to: "/blog" },
   ];
 
@@ -63,7 +62,7 @@ export function NewcatalogTopNav() {
       <div className="ru-promo">
         <div className="ru-max">
           <div className="flex h-8 items-center justify-center px-6 text-xs font-semibold">
-            Create by you, built with Katalogo
+            Create by you, built with {t("legacy.topmenu.brand")}
           </div>
         </div>
       </div>
@@ -86,16 +85,16 @@ export function NewcatalogTopNav() {
             <button
               type="button"
               className="ru-iconbtn md:hidden"
-              aria-label={mobileOpen ? "Menüyü kapat" : "Menü"}
+              aria-label={mobileOpen ? t("nav.menuClose") : t("nav.menu")}
               aria-expanded={mobileOpen}
               onClick={() => setMobileOpen((v) => !v)}
             >
               {mobileOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
             </button>
-            <button type="button" className="ru-iconbtn" aria-label="Search">
+            <button type="button" className="ru-iconbtn" aria-label={t("nav.search")}>
               <Search className="h-4 w-4" aria-hidden />
             </button>
-            <Link to="/cart" className="ru-iconbtn relative" aria-label="Sepet">
+            <Link to="/cart" className="ru-iconbtn relative" aria-label={t("nav.cart")}>
               <ShoppingCart className="h-4 w-4" aria-hidden />
               {totalCount > 0 ? (
                 <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
@@ -136,8 +135,8 @@ export function NewcatalogTopNav() {
                 </button>
                 <span
                   className="hidden sm:inline-flex items-center rounded-full border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground/80"
-                  aria-label="Hesap türü"
-                  title="Hesap türü"
+                  aria-label={t("nav.accountType")}
+                  title={t("nav.accountType")}
                 >
                   {getPlanDisplayName(membership?.plan)}
                 </span>
@@ -158,7 +157,7 @@ export function NewcatalogTopNav() {
                   className="hidden md:inline-flex"
                   onClick={onGoogle}
                 >
-                  Continue with Google
+                  {t("nav.continueWithGoogle")}
                 </Button>
                 <Link to="/pricing" className="ru-cta">
                   {t("nav.getStarted")}

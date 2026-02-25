@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SignedImage } from "@/components/ui/signed-image";
 import { useCart } from "@/contexts/CartContext";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 const PLACEHOLDER = "/placeholder.svg";
 
@@ -50,6 +51,7 @@ function CardImageCarousel({
   badge: string | null;
   isHovered?: boolean;
 }) {
+  const { t } = useI18n();
   const [index, setIndex] = useState(0);
   const [usedArrows, setUsedArrows] = useState(false);
   const n = images.length;
@@ -92,7 +94,7 @@ function CardImageCarousel({
             type="button"
             className="ru-card-carousel-arrow ru-card-carousel-arrow--prev"
             onClick={goPrev}
-            aria-label="Önceki görsel"
+            aria-label={t("product.prevImage")}
           >
             <ChevronLeft className="h-4 w-4" aria-hidden />
           </button>
@@ -100,17 +102,17 @@ function CardImageCarousel({
             type="button"
             className="ru-card-carousel-arrow ru-card-carousel-arrow--next"
             onClick={goNext}
-            aria-label="Sonraki görsel"
+            aria-label={t("product.nextImage")}
           >
             <ChevronRight className="h-4 w-4" aria-hidden />
           </button>
-          <div className="ru-card-carousel-dots" role="tablist" aria-label="Görsel seç">
+          <div className="ru-card-carousel-dots" role="tablist" aria-label={t("product.color")}>
             {images.map((_, i) => (
               <button
                 key={i}
                 type="button"
                 role="tab"
-                aria-label={`Görsel ${i + 1}`}
+                aria-label={`${t("common.product")} ${i + 1}`}
                 aria-selected={i === displayIndex}
                 className={i === displayIndex ? "ru-card-carousel-dot ru-card-carousel-dot--active" : "ru-card-carousel-dot"}
                 onClick={(e) => {
@@ -169,18 +171,28 @@ function pickAttr(data: Record<string, unknown>, keys: string[]): string | null 
   return null;
 }
 
-export function CatalogProductGrid({ products }: { products: CatalogProduct[] }) {
+export function CatalogProductGrid({
+  products,
+  designerBrandSlug = null,
+}: {
+  products: CatalogProduct[];
+  designerBrandSlug?: string | null;
+}) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { addItem: addToCart } = useCart();
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
 
   return (
-    <section className="ts-container ru-catalog-grid" aria-label="Products">
-      <div className="ru-related-grid" role="list" aria-label="Product list">
+    <section className="ts-container ru-catalog-grid" aria-label={t("common.products")}>
+      <div className="ru-related-grid" role="list" aria-label={t("common.products")}>
         {products.map((p) => {
           const cardImages = getCardImages(p);
           const price = formatPriceFrom(p.price_from);
-          const href = p.slug ? `/product/${p.slug}` : `/product/id/${p.id}`;
+          const productQuerySuffix = designerBrandSlug
+            ? `?brandSlug=${encodeURIComponent(designerBrandSlug)}`
+            : "";
+          const href = p.slug ? `/product/${p.slug}${productQuerySuffix}` : `/product/id/${p.id}${productQuerySuffix}`;
           const colors = getColors(p);
           const sizeRange = getSizeRange(p);
           const attrs = getAttrs(p);
@@ -190,7 +202,7 @@ export function CatalogProductGrid({ products }: { products: CatalogProduct[] })
           const specParts: string[] = [];
           if (gender) specParts.push(gender);
           if (sizeRange) specParts.push(sizeRange);
-          if (colors.length) specParts.push(`${colors.length} colors`);
+          if (colors.length) specParts.push(`${colors.length} ${t("product.colors").toLowerCase()}`);
           if (gsm) specParts.push(`${gsm} gsm`);
           if (oz) specParts.push(`${oz} oz`);
           const specLine = specParts.length ? specParts.join(" · ") : null;
@@ -213,6 +225,7 @@ export function CatalogProductGrid({ products }: { products: CatalogProduct[] })
             );
             const params = new URLSearchParams({ productId: p.id });
             if (firstColor?.id) params.set("colorId", firstColor.id);
+            if (designerBrandSlug) params.set("brandSlug", designerBrandSlug);
             navigate(`/designer?${params.toString()}`);
           };
 
@@ -236,7 +249,7 @@ export function CatalogProductGrid({ products }: { products: CatalogProduct[] })
                 </div>
                 <div className="ru-related-meta">
                   {colors.length > 0 ? (
-                    <div className="ru-card-colors" role="list" aria-label="Renkler">
+                    <div className="ru-card-colors" role="list" aria-label={t("product.colors")}>
                       {colors.map((c) => (
                         <span
                           key={c.id}
@@ -265,10 +278,10 @@ export function CatalogProductGrid({ products }: { products: CatalogProduct[] })
                     onClick={handleDesignNow}
                     className="ru-card-btn ru-card-btn--primary"
                   >
-                    Design Now
+                    {t("common.designNow")}
                   </button>
                   <Link to="/cart" className="ru-card-btn ru-card-btn--secondary">
-                    Get a quote
+                    {t("cart.summary.requestQuote")}
                   </Link>
                 </div>
               </article>

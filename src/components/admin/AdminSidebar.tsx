@@ -39,21 +39,23 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 const ITEMS = [
-  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
-  { title: "Products", url: "/admin/products", icon: Package },
-  { title: "Catalog", url: "/admin/catalog", icon: BookOpen },
-  { title: "Categories", url: "/admin/categories", icon: Tags },
-  { title: "Filters", url: "/admin/filters", icon: SlidersHorizontal },
-  { title: "Media", url: "/admin/media", icon: ImageIcon },
-  { title: "Users", url: "/admin/users", icon: Users },
-  { title: "Import", url: "/admin/import", icon: Download },
-  { title: "Export", url: "/admin/export", icon: FileDown },
-  { title: "Settings", url: "/admin/settings", icon: Settings },
+  { title: "admin.dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
+  { title: "admin.products", url: "/admin/products", icon: Package },
+  { title: "admin.catalog", url: "/admin/catalog", icon: BookOpen },
+  { title: "admin.categories", url: "/admin/categories", icon: Tags },
+  { title: "admin.filters", url: "/admin/filters", icon: SlidersHorizontal },
+  { title: "admin.media", url: "/admin/media", icon: ImageIcon },
+  { title: "admin.users", url: "/admin/users", icon: Users },
+  { title: "admin.import", url: "/admin/import", icon: Download },
+  { title: "admin.export", url: "/admin/export", icon: FileDown },
+  { title: "admin.settings", url: "/admin/settings", icon: Settings },
 ] as const;
 
 export function AdminSidebar() {
+  const { t } = useI18n();
   const { collapsed } = useSidebar() as unknown as { collapsed?: boolean };
   const location = useLocation();
   const navigate = useNavigate();
@@ -75,7 +77,7 @@ export function AdminSidebar() {
             <SidebarMenu>
               {ITEMS.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={t(item.title)}>
                     <NavLink
                       to={item.url}
                       className="w-full"
@@ -83,7 +85,7 @@ export function AdminSidebar() {
                       aria-current={isActive(item.url) ? "page" : undefined}
                     >
                       <item.icon />
-                      {!collapsed ? <span>{item.title}</span> : null}
+                      {!collapsed ? <span>{t(item.title)}</span> : null}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -95,7 +97,7 @@ export function AdminSidebar() {
       <SidebarFooter className="shrink-0 border-t border-sidebar-border">
         {!session ? (
           <Button asChild variant="outline" size="sm" className="w-full">
-            <Link to="/auth">Giriş</Link>
+            <Link to="/auth">{t("nav.login")}</Link>
           </Button>
         ) : (
           <DropdownMenu>
@@ -126,7 +128,7 @@ export function AdminSidebar() {
                 }}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Çıkış Yap
+                {t("nav.logoutLong")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

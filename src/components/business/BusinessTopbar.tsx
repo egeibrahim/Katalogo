@@ -14,13 +14,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { getPlanDisplayName } from "@/lib/planFeatures";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { LOCALES, type Locale } from "@/lib/i18n/locales";
 
 const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
-  { prefix: "/brand/catalogs", title: "Kataloglarım", subtitle: "Kataloglarını oluştur, yayınla ve yönet" },
+  { prefix: "/brand/catalogs", title: "brand.topbarCatalogs", subtitle: "brand.topbarCatalogsSubtitle" },
 ];
 
 export function BusinessTopbar() {
@@ -29,6 +32,7 @@ export function BusinessTopbar() {
   const { session, signOut } = useAuth();
   const { data: membership } = useUserMembership(session?.user?.id ?? null);
   const [scrolled, setScrolled] = useState(false);
+  const { t, locale, setLocale } = useI18n();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -39,7 +43,7 @@ export function BusinessTopbar() {
 
   const meta = useMemo(() => {
     const hit = TITLES.find((t) => location.pathname.startsWith(t.prefix));
-    return hit ?? { title: "İş Paneli", subtitle: "" };
+    return hit ?? { title: "brand.topbarDefault", subtitle: "" };
   }, [location.pathname]);
 
   const email = session?.user?.email ?? "";
@@ -52,11 +56,25 @@ export function BusinessTopbar() {
         <Separator orientation="vertical" className="h-6" />
 
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">{meta.title}</p>
-          <p className="truncate text-xs text-muted-foreground">{meta.subtitle}</p>
+          <p className="truncate text-sm font-semibold text-foreground">{t(meta.title)}</p>
+          <p className="truncate text-xs text-muted-foreground">{meta.subtitle ? t(meta.subtitle) : ""}</p>
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <div className="hidden md:inline-flex items-center">
+            <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
+              <SelectTrigger className="h-9 w-[84px] bg-transparent">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {LOCALES.map((it) => (
+                  <SelectItem key={it.value} value={it.value}>
+                    {it.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 gap-2">
@@ -79,7 +97,7 @@ export function BusinessTopbar() {
                   navigate("/auth", { replace: true });
                 }}
               >
-                Çıkış Yap
+                {t("nav.logoutLong")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

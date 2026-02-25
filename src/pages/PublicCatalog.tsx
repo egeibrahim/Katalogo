@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CatalogProductGrid } from "@/components/newcatalog/collection/CatalogProductGrid";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 type Catalog = {
   id: string;
@@ -34,6 +35,7 @@ type PublicCatalogData = {
 };
 
 export default function PublicCatalog() {
+  const { t } = useI18n();
   const { slug } = useParams();
 
   const { data, isLoading } = useQuery({
@@ -85,13 +87,13 @@ export default function PublicCatalog() {
   const productCount = products.length;
   const description =
     catalog?.name && productCount > 0
-      ? `${catalog.name} catalog – ${productCount} products. View on Katalogo.`
+      ? t("publicCatalog.metaWithCount", { name: catalog.name, count: productCount })
       : catalog?.name
-        ? `${catalog.name} catalog. View on Katalogo.`
-        : "Katalog";
+        ? t("publicCatalog.metaWithoutCount", { name: catalog.name })
+        : t("publicCatalog.metaFallbackTitle");
 
   usePageMeta({
-    title: catalog?.name ? catalog.name : "Katalog",
+    title: catalog?.name ? catalog.name : t("publicCatalog.metaFallbackTitle"),
     description,
     ogImageUrl: catalog?.cover_image_url ?? undefined,
   });
@@ -135,7 +137,7 @@ export default function PublicCatalog() {
       <div className="p-6">
         <Card>
           <CardHeader>
-            <CardTitle>Loading…</CardTitle>
+            <CardTitle>{t("common.loading")}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -147,10 +149,10 @@ export default function PublicCatalog() {
       <div className="p-6">
         <Card>
           <CardHeader>
-            <CardTitle>This catalog is not published</CardTitle>
+            <CardTitle>{t("publicCatalog.notPublished")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">If the link is correct, the publish setting may be off.</p>
+            <p className="text-sm text-muted-foreground">{t("publicCatalog.notPublishedDesc")}</p>
           </CardContent>
         </Card>
       </div>
@@ -183,7 +185,7 @@ export default function PublicCatalog() {
             />
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-semibold text-foreground md:text-3xl">{catalog.name}</h1>
-              <p className="truncate text-sm text-muted-foreground">Contact: {catalog.contact_email}</p>
+              <p className="truncate text-sm text-muted-foreground">{t("publicCatalog.contact")}: {catalog.contact_email}</p>
             </div>
           </div>
         </div>
@@ -193,19 +195,19 @@ export default function PublicCatalog() {
         {products.length === 0 ? (
           <Card>
             <CardHeader>
-              <CardTitle>Products</CardTitle>
+              <CardTitle>{t("common.products")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">No products in this catalog yet.</p>
+              <p className="text-sm text-muted-foreground">{t("publicCatalog.noProducts")}</p>
             </CardContent>
           </Card>
         ) : (
           <>
             <div className="mb-4">
-              <h2 className="text-lg font-semibold">Products</h2>
-              <p className="text-sm text-muted-foreground">Products in this catalog</p>
+              <h2 className="text-lg font-semibold">{t("common.products")}</h2>
+              <p className="text-sm text-muted-foreground">{t("publicCatalog.productsInCatalog")}</p>
             </div>
-            <CatalogProductGrid products={products} />
+            <CatalogProductGrid products={products} designerBrandSlug={catalog.slug} />
           </>
         )}
       </main>

@@ -7,6 +7,7 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { Check, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 const AUTH_PENDING_CHECKOUT_KEY = "auth_pending_checkout";
 
@@ -53,6 +54,7 @@ function isAuthErrorMessage(message: string): boolean {
 }
 
 export default function Pricing() {
+  const { t } = useI18n();
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -60,13 +62,13 @@ export default function Pricing() {
   const [searchParams] = useSearchParams();
   const handledResult = useRef(false);
   const handledAccessWarning = useRef(false);
-  usePageMeta({ title: "Fiyat – Katalogo" });
+  usePageMeta({ title: t("pages.pricing.title") });
 
   useEffect(() => {
     const state = location.state as { blockedPanelAccess?: boolean } | null;
     if (handledAccessWarning.current || !state?.blockedPanelAccess) return;
     handledAccessWarning.current = true;
-    toast.info("Panel sadece Marka planında kullanılabilir.");
+    toast.info(t("pricing.blockedPanel"));
   }, [location.state]);
 
   // Stripe success/cancel dönüşünde pending_plan temizle
@@ -83,9 +85,9 @@ export default function Pricing() {
     }
 
     if (success) {
-      toast.success("Ödeme başarıyla tamamlandı. Panele erişebilirsiniz.");
+      toast.success(t("pricing.paymentSuccess"));
     } else if (canceled) {
-      toast.info("Ödeme iptal edildi. İstediğiniz zaman tekrar deneyebilirsiniz.");
+      toast.info(t("pricing.paymentCanceled"));
     }
 
     const clearPending = async () => {
@@ -131,7 +133,7 @@ export default function Pricing() {
         } catch {
           /* ignore */
         }
-        toast.info("Devam etmek için giriş / kayıt gerekiyor. Yönlendiriliyorsunuz…");
+        toast.info(t("pricing.authNeeded"));
         navigate("/auth", {
           state: {
             from: { pathname: "/pricing" },
@@ -172,9 +174,9 @@ export default function Pricing() {
       }
       const url = (data as { url?: string })?.url;
       if (url) window.location.href = url;
-      else throw new Error("Ödeme sayfası alınamadı");
+      else throw new Error(t("pricing.checkoutUnavailable"));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Ödeme başlatılamadı";
+      const msg = e instanceof Error ? e.message : t("pricing.checkoutFailed");
       // Token/oturum sorunu varsa kullanıcıyı auth’a yönlendir
       const isAuthIssue = isAuthErrorMessage(String(msg));
       if (isAuthIssue) {
@@ -186,7 +188,7 @@ export default function Pricing() {
         } catch {
           /* ignore */
         }
-        toast.error("Oturum süresi dolmuş. Lütfen tekrar giriş yapın.");
+        toast.error(t("pricing.sessionExpired"));
         navigate("/auth", {
           state: {
             from: { pathname: "/pricing" },
@@ -206,67 +208,54 @@ export default function Pricing() {
   const plans = [
     {
       name: "Free",
-      description: "İhtiyaç halinde kullanım için ideal.",
+      description: t("pricing.plan.free.desc"),
       priceMonthly: null as string | null,
       priceYearly: null as string | null,
-      priceLabel: "Ücretsiz",
-      cta: "Ücretsiz başla",
+      priceLabel: t("pricing.plan.free.priceLabel"),
+      cta: t("pricing.plan.free.cta"),
       href: "/auth",
-      features: [
-        "Tüm kataloğa erişim",
-        "Designer ile mockup oluştur",
-        "Günlük 2 adet indirme",
-      ],
+      features: [t("nav.catalog"), t("landing.servicesDesigner"), t("designer.export")],
       variant: "free" as const,
     },
     {
-      name: "Kişisel",
-      description: "Düzenli ürün tasarlayanlar için sınırsız erişim planı.",
+      name: t("pricing.plan.individual.name"),
+      description: t("pricing.plan.individual.desc"),
       priceMonthly: "$7",
       priceYearly: "$70",
       priceLabel: null,
-      cta: "Başla",
+      cta: t("pricing.plan.individual.cta"),
       href: "/auth",
       stripePlanId: "individual" as const,
-      features: [
-        "Tüm kataloğa erişim",
-        "Sınırsız Designer kullanımı",
-        "Sınırsız mockup indirme",
-      ],
+      features: [t("nav.catalog"), t("landing.servicesDesigner"), t("designer.exportOriginal")],
       variant: "warning" as const,
     },
     {
-      name: "Marka",
-      description: "Kendi ürün kataloğunuzu oluşturun, müşteri tekliflerini yönetin. Özel marka sayfanızla satışı büyütün.",
+      name: t("pricing.plan.brand.name"),
+      description: t("pricing.plan.brand.desc"),
       priceMonthly: "$20",
       priceYearly: "$200",
       priceLabel: null,
-      cta: "Marka planı",
+      cta: t("pricing.plan.brand.cta"),
       href: "/auth",
       stripePlanId: "brand" as const,
       features: [
-        "Markanıza ait web kataloğu",
-        "Özel marka sayfası (kendi URL adınız)",
-        "Müşterilerin ürünlerinizle mockup oluşturması",
-        "Müşterilerden teklif alma",
+        t("publicCatalogList.title"),
+        t("landing.servicesBrandPage"),
+        t("landing.servicesDesigner"),
+        t("landing.servicesQuotes"),
       ],
       variant: "primary" as const,
     },
     {
-      name: "Kurumsal",
-      description: "Kurumsal ihtiyaçlarınız için özel alan adı, markaya özel tasarım ve entegre ödeme çözümleri.",
+      name: t("pricing.plan.enterprise.name"),
+      description: t("pricing.plan.enterprise.desc"),
       priceMonthly: null,
       priceYearly: null,
-      priceLabel: "Teklif",
-      cta: "İletişime geç",
+      priceLabel: t("pricing.plan.enterprise.priceLabel"),
+      cta: t("pricing.plan.enterprise.cta"),
       href: "/auth",
       stripePlanId: null as "individual" | "brand" | null,
-      features: [
-        "Marka planındaki tüm özellikler dahil",
-        "Kurumsal kimliğinize uygun özel alan adı (custom domain)",
-        "Markanıza özel web tasarım ve arayüz",
-        "Entegre ödeme altyapısı",
-      ],
+      features: [t("pricing.plan.brand.desc"), t("common.contact"), t("landing.servicesPublish"), t("common.apply")],
       variant: "dark" as const,
     },
   ];
@@ -277,7 +266,7 @@ export default function Pricing() {
         <div className="awake-pricing-container">
           <div className="awake-pricing-header">
             <h2 className="awake-pricing-title">
-              İhtiyacına uygun planı seç
+              {t("pricing.title")}
             </h2>
             <div className="awake-pricing-toggle-wrap">
               <button
@@ -285,14 +274,14 @@ export default function Pricing() {
                 className={`awake-pricing-toggle-btn ${billingPeriod === "monthly" ? "awake-pricing-toggle-btn--active" : ""}`}
                 onClick={() => setBillingPeriod("monthly")}
               >
-                Aylık
+                {t("pricing.monthly")}
               </button>
               <button
                 type="button"
                 className={`awake-pricing-toggle-btn ${billingPeriod === "yearly" ? "awake-pricing-toggle-btn--active" : ""}`}
                 onClick={() => setBillingPeriod("yearly")}
               >
-                Yıllık
+                {t("pricing.yearly")}
               </button>
               <span className="awake-pricing-toggle-slider" data-active={billingPeriod} />
             </div>
@@ -319,7 +308,7 @@ export default function Pricing() {
                             disabled={!!checkoutLoading}
                           >
                             <span className="awake-pricing-btn-text">
-                              {billingPeriod === "monthly" ? `${plan.priceMonthly}/ay` : `${plan.priceYearly}/yıl`}
+                              {billingPeriod === "monthly" ? `${plan.priceMonthly}/${t("pricing.monthly").toLowerCase()}` : `${plan.priceYearly}/${t("pricing.yearly").toLowerCase()}`}
                             </span>
                             <span className="awake-pricing-btn-icon">
                               <ArrowUpRight className="awake-pricing-btn-icon-svg" aria-hidden />
@@ -328,7 +317,7 @@ export default function Pricing() {
                         ) : (
                           <Link to={plan.href} className={`awake-pricing-btn ${plan.variant === "free" ? "awake-pricing-btn--dark" : "awake-pricing-btn--white"}`}>
                             <span className="awake-pricing-btn-text">
-                              {plan.priceLabel ? plan.cta : billingPeriod === "monthly" ? `${plan.priceMonthly}/ay — ${plan.cta}` : `${plan.priceYearly}/yıl — ${plan.cta}`}
+                              {plan.priceLabel ? plan.cta : billingPeriod === "monthly" ? `${plan.priceMonthly}/${t("pricing.monthly").toLowerCase()} — ${plan.cta}` : `${plan.priceYearly}/${t("pricing.yearly").toLowerCase()} — ${plan.cta}`}
                             </span>
                             <span className="awake-pricing-btn-icon">
                               <ArrowUpRight className="awake-pricing-btn-icon-svg" aria-hidden />
@@ -338,7 +327,7 @@ export default function Pricing() {
                       </div>
                     </div>
                     <div className="awake-pricing-card-right">
-                      <h6 className="awake-pricing-features-title">Özellikler</h6>
+                      <h6 className="awake-pricing-features-title">{t("pricing.featuresTitle")}</h6>
                       <ul className="awake-pricing-features-list">
                         {plan.features.map((feature) => (
                           <li key={feature} className="awake-pricing-feature">

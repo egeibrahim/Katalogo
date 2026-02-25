@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { NewcatalogChrome } from "@/components/newcatalog/layout/NewcatalogChrome";
@@ -25,6 +25,7 @@ import { useCart } from "@/contexts/CartContext";
 import { canUseCart } from "@/lib/planFeatures";
 import { toast } from "sonner";
 import { getSignedImageUrl } from "@/lib/storage";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 function formatSizeRange(sizes: string[]) {
   if (sizes.length === 0) return null;
@@ -103,8 +104,11 @@ function pickAttrStringArray(data: Record<string, unknown> | undefined, keys: st
 }
 
 export default function ProductPage() {
+  const { t } = useI18n();
   const { slug, id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const designerBrandSlug = searchParams.get("brandSlug");
 
   const productBySlug = usePublicProductBySlug(slug);
   const productById = usePublicProductById(id);
@@ -152,7 +156,7 @@ export default function ProductPage() {
     return null;
   }, [stockMode, stockQuantity]);
   const cartQtyForProduct = useMemo(
-    () => cartItems.find((i) => i.productId === productId ?? "")?.quantity ?? 0,
+    () => cartItems.find((i) => i.productId === (productId ?? ""))?.quantity ?? 0,
     [cartItems, productId]
   );
   const remainingStock = useMemo(() => {
@@ -328,6 +332,7 @@ export default function ProductPage() {
     const params = new URLSearchParams({ productId });
     if (activeViewId) params.set("viewId", activeViewId);
     if (selectedColorId) params.set("colorId", selectedColorId);
+    if (designerBrandSlug) params.set("brandSlug", designerBrandSlug);
     navigate(`/designer?${params.toString()}`);
   };
 
@@ -344,15 +349,15 @@ export default function ProductPage() {
     const qtyToAdd =
       remainingStock !== null ? Math.min(addToCartQty, remainingStock) : addToCartQty;
     if (qtyToAdd < 1) {
-      if (remainingStock === 0) toast.info("Out of stock. This product is currently closed for orders.");
+      if (remainingStock === 0) toast.info(t("product.outOfStock"));
       return;
     }
     if (sizeNames.length > 0 && !selectedSize) {
-      toast.info("Please select a size.");
+      toast.info(t("product.selectSize"));
       return;
     }
     if (remainingStock !== null && addToCartQty > remainingStock) {
-      toast.info(`Kalan stok: ${remainingStock} adet. Sepete en fazla ${remainingStock} adet eklenebilir.`);
+      toast.info(t("product.stockLimit", { count: remainingStock }));
     }
     const priceFrom = unitPriceFromTier != null ? unitPriceFromTier : (product.price_from ?? null);
     const quantityBySize =
@@ -382,7 +387,7 @@ export default function ProductPage() {
       <NewcatalogChrome activeCategory="All">
         <div className="ru-max">
           <section className="ts-container pt-5" aria-label="Product loading">
-            <h1 className="ru-h1">Loading…</h1>
+            <h1 className="ru-h1">{t("product.loading")}</h1>
           </section>
         </div>
       </NewcatalogChrome>
@@ -394,10 +399,10 @@ export default function ProductPage() {
       <NewcatalogChrome activeCategory="All">
         <div className="ru-max">
           <section className="ts-container pt-5" aria-label="Product not found">
-            <h1 className="ru-h1">Product not found</h1>
+            <h1 className="ru-h1">{t("product.notFound")}</h1>
             <div className="mt-4">
               <Link to="/catalog/all" className="ru-pill">
-                Back to catalog
+                {t("common.backToCatalog")}
               </Link>
             </div>
           </section>
@@ -412,7 +417,7 @@ export default function ProductPage() {
         <section className="ts-container pt-5" aria-label="Product header">
           <nav className="ru-breadcrumb" aria-label="Breadcrumb">
             <Link to="/catalog/all" className="ru-breadcrumb-link">
-              All
+              {t("product.all")}
             </Link>
             <span className="ru-breadcrumb-sep">/</span>
             {category ? (
@@ -446,7 +451,7 @@ export default function ProductPage() {
                 ) : null}
                 {colorCount ? (
                   <>
-                    <span>{colorCount} Colors</span>
+                    <span>{colorCount} {t("product.colors")}</span>
                     <span className="ru-meta-sep" aria-hidden />
                   </>
                 ) : null}
@@ -462,14 +467,14 @@ export default function ProductPage() {
 
             <div className="ru-header-actions" aria-label="Primary actions">
               <button className="ru-btn-primary" type="button" onClick={handleDesignNow}>
-                Design Now
+                {t("common.designNow")}
               </button>
             </div>
           </div>
 
           <div className="ru-header-actions-mobile" aria-label="Primary actions">
             <button className="ru-btn-primary" type="button" onClick={handleDesignNow}>
-              Design Now
+              {t("common.designNow")}
             </button>
           </div>
 
@@ -484,14 +489,14 @@ export default function ProductPage() {
               >
                 <span>
                   {selectedColorId && colors?.length
-                    ? colors.find((c) => c.id === selectedColorId)?.name ?? "Color"
-                    : "Color"}
+                    ? colors.find((c) => c.id === selectedColorId)?.name ?? t("product.color")
+                    : t("product.color")}
                 </span>
                 <ChevronDown className={colorOpen ? "h-4 w-4 ru-chev ru-chev--open" : "h-4 w-4 ru-chev"} aria-hidden />
               </button>
 
               {colorOpen ? (
-                <div className="ru-color-menu" role="menu" aria-label="Color options">
+                <div className="ru-color-menu" role="menu" aria-label={t("product.color")}>
                   <div className="ru-color-swatches">
                     {colors?.length ? colors.map((c) => (
                       <button
@@ -507,7 +512,7 @@ export default function ProductPage() {
                         }}
                       />
                     )) : (
-                      <p className="text-sm text-muted-foreground py-2">Renk seçeneği yok</p>
+                      <p className="text-sm text-muted-foreground py-2">{t("product.noColorOptions")}</p>
                     )}
                   </div>
                 </div>
@@ -525,7 +530,7 @@ export default function ProductPage() {
                 if (el) el.scrollBy({ left: -380, behavior: "smooth" });
               }}
               className="ru-gallery-arrow ru-gallery-arrow--left"
-              aria-label="Önceki görsel"
+              aria-label={t("product.prevImage")}
             >
               <ChevronLeft className="h-6 w-6" />
             </button>
@@ -540,7 +545,7 @@ export default function ProductPage() {
                       muted
                       loop
                       playsInline
-                      aria-label="Ürün videosu"
+                      aria-label={t("product.videoAria")}
                     />
                   </div>
                 ) : (
@@ -560,7 +565,7 @@ export default function ProductPage() {
                 if (el) el.scrollBy({ left: 380, behavior: "smooth" });
               }}
               className="ru-gallery-arrow ru-gallery-arrow--right"
-              aria-label="Sonraki görsel"
+              aria-label={t("product.nextImage")}
             >
               <ChevronRight className="h-6 w-6" />
             </button>
@@ -591,6 +596,7 @@ export default function ProductPage() {
             placementOptions={placementOptions}
             techniques={techniques}
             designNowViewId={activeViewId}
+            designerBrandSlug={designerBrandSlug}
             selectedColorId={selectedColorId}
             onSelectedColorIdChange={setSelectedColorId}
             selectedSize={selectedSize}

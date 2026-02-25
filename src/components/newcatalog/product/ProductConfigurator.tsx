@@ -9,6 +9,7 @@ import { usePublicProductShippingOverride } from "@/hooks/usePublicProduct";
 import { FULFILLMENT_CITIES_BY_COUNTRY, FULFILLMENT_COUNTRIES } from "@/lib/fulfillmentLocations";
 import { getSignedImageUrl } from "@/lib/storage";
 import { SignedImage } from "@/components/ui/signed-image";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 type ColorOption = { id: string; name: string; hex_code: string };
 
@@ -145,6 +146,7 @@ export function ProductConfigurator({
   printAreaViews = null,
   placementOptions = null,
   designNowViewId = null,
+  designerBrandSlug = null,
   addToCartRef,
 }: {
   productId?: string;
@@ -181,9 +183,12 @@ export function ProductConfigurator({
   placementOptions?: Array<{ name: string; price: string }> | null;
   /** View ID to open in designer when "Design Now" is clicked (e.g. from product page front/back). */
   designNowViewId?: string | null;
+  /** If set, designer runs in brand-page context (e.g. /brand/:slug). */
+  designerBrandSlug?: string | null;
   /** Ref to expose addToCartWithCurrentSelections for Design Now (e.g. header button adds to cart then navigates). */
   addToCartRef?: React.MutableRefObject<{ addToCartWithCurrentSelections: () => void } | null>;
 }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [sizeGuideOpen, setSizeGuideOpen] = React.useState(false);
   const [sizeGuideImgSrc, setSizeGuideImgSrc] = React.useState<string | null>(sizeGuideImageUrl ?? null);
@@ -430,8 +435,9 @@ export function ProductConfigurator({
     const params = new URLSearchParams({ productId });
     if (designNowViewId) params.set("viewId", designNowViewId);
     if (selectedColorId) params.set("colorId", selectedColorId);
+    if (designerBrandSlug) params.set("brandSlug", designerBrandSlug);
     navigate(`/designer?${params.toString()}`);
-  }, [navigate, productId, designNowViewId, selectedColorId, addToCartWithCurrentSelections]);
+  }, [navigate, productId, designNowViewId, selectedColorId, designerBrandSlug, addToCartWithCurrentSelections]);
 
   React.useEffect(() => {
     if (addToCartRef) {
@@ -482,12 +488,12 @@ export function ProductConfigurator({
           {topSlot ? topSlot : null}
 
           {colors.length ? (
-            <div className="ru-block" aria-label="Color">
+            <div className="ru-block" aria-label={t("common.color")}>
               <div className="ru-block-head">
-                <h2 className="ru-h2">Color</h2>
+                <h2 className="ru-h2">{t("common.color")}</h2>
               </div>
 
-              <div className="ru-color-row" role="list" aria-label="Colors">
+              <div className="ru-color-row" role="list" aria-label={t("product.colors")}>
                 {colors.map((c) => (
                   <button
                     key={c.id}
@@ -500,7 +506,7 @@ export function ProductConfigurator({
                       if (onSelectedColorIdChange) onSelectedColorIdChange(c.id);
                       else setSelectedColorIds((prev) => toggleSelection(prev, c.id));
                     }}
-                    aria-label={`Color ${c.name}`}
+                    aria-label={`${t("common.color")} ${c.name}`}
                     aria-pressed={effectiveSelectedColorIds.includes(c.id)}
                   />
                 ))}
@@ -511,7 +517,7 @@ export function ProductConfigurator({
           {sizes.length ? (
             <div className="ru-block">
               <div className="ru-block-head">
-                <h2 className="ru-h2">Size</h2>
+                <h2 className="ru-h2">{t("common.size")}</h2>
               </div>
 
               <div className="ru-size-row" role="list" aria-label="Sizes">
@@ -538,7 +544,7 @@ export function ProductConfigurator({
                   className="ru-outline-pill inline-flex items-center gap-1.5 text-sm font-medium"
                   aria-expanded={sizeGuideOpen}
                 >
-                  Size Guide
+                  {t("common.size")} Guide
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${sizeGuideOpen ? "rotate-180" : ""}`}
                     aria-hidden
@@ -567,7 +573,7 @@ export function ProductConfigurator({
               return (
                 <div key={block} className="ru-block">
                   <div className="ru-block-head">
-                    <h2 className="ru-h2">Unit Price</h2>
+                    <h2 className="ru-h2">{t("cart.quote.unitPrice")}</h2>
                   </div>
                   <UnitPriceTiers
                     tiers={unitPriceTiers?.length ? unitPriceTiers : fallbackUnitPriceTiers}
@@ -733,7 +739,7 @@ export function ProductConfigurator({
             return (
               <div key={block} className="ru-block">
                 <div className="ru-block-head">
-                  <h2 className="ru-h2">Shipping</h2>
+                    <h2 className="ru-h2">{t("cart.summary.shipping")}</h2>
                 </div>
 
                 {hasShippingTip ? <div className="ru-tip">{shippingTip}</div> : null}
@@ -806,7 +812,7 @@ export function ProductConfigurator({
           <div className="ru-sticky-details">
             {colors.length > 0 && (
               <div className="ru-sticky-detail-row">
-                <span className="ru-muted">Renk</span>
+                <span className="ru-muted">{t("common.color")}</span>
                 <span className="ru-sticky-detail-val">
                   {selectedColorId
                     ? colors.find((c) => c.id === selectedColorId)?.name ?? "—"
@@ -820,7 +826,7 @@ export function ProductConfigurator({
             )}
             {sizes.length > 0 && (
               <div className="ru-sticky-detail-row">
-                <span className="ru-muted">Beden</span>
+                <span className="ru-muted">{t("common.size")}</span>
                 <span className="ru-sticky-detail-val">
                   {selectedSize ?? (effectiveSelectedSizes.length > 0 ? effectiveSelectedSizes.join(", ") : "—")}
                 </span>
@@ -828,13 +834,13 @@ export function ProductConfigurator({
             )}
             {techniqueOptions.length > 0 && selectedTechnique && (
               <div className="ru-sticky-detail-row">
-                <span className="ru-muted">Teknik</span>
+                <span className="ru-muted">{t("cart.quote.technique")}</span>
                 <span className="ru-sticky-detail-val">{selectedTechnique}</span>
               </div>
             )}
             {placementsList.length > 0 && selectedPlacementIndices.length > 0 && (
               <div className="ru-sticky-detail-row">
-                <span className="ru-muted">Baskı alanları</span>
+                <span className="ru-muted">{t("cart.item.printAreas")}</span>
                 <span className="ru-sticky-detail-val">
                   {selectedPlacementIndices
                     .map((i) => placementsList[i]?.name)
@@ -871,11 +877,11 @@ export function ProductConfigurator({
             <>
               <div className="ru-sticky-divider" />
               {maxQuantity === 0 ? (
-                <p className="ru-muted text-sm">Stok yok</p>
+                <p className="ru-muted text-sm">{t("product.outOfStock")}</p>
               ) : (
                 <>
                   <div className="ru-sticky-row">
-                    <label className="ru-sticky-strong" htmlFor="sticky-qty">Adet</label>
+                    <label className="ru-sticky-strong" htmlFor="sticky-qty">{t("common.quantity")}</label>
                     <input
                       id="sticky-qty"
                       type="text"
@@ -894,15 +900,15 @@ export function ProductConfigurator({
                     />
                   </div>
                   {maxQuantity != null && maxQuantity > 0 ? (
-                    <p className="ru-muted text-sm">Kalan stok: {maxQuantity} adet</p>
+                    <p className="ru-muted text-sm">{t("product.stockLimit", { count: maxQuantity })}</p>
                   ) : null}
                   <div className="ru-sticky-box">
                     <div className="ru-sticky-box-row">
-                      <span>Toplam adet</span>
+                      <span>{t("common.quantity")}</span>
                       <span>{quantity}</span>
                     </div>
                     <div className="ru-sticky-box-row">
-                      <span>Toplam fiyat</span>
+                      <span>{t("common.total")}</span>
                       <span>{formatUnitPrice(quantity * effectiveUnitPrice, effectiveTier.currency)}</span>
                     </div>
                   </div>
@@ -920,9 +926,9 @@ export function ProductConfigurator({
                       });
                     }}
                     disabled={maxQuantity === 0 || (sizes.length > 0 && effectiveSelectedSizes.length === 0)}
-                    title={sizes.length > 0 && effectiveSelectedSizes.length === 0 ? "Lütfen beden seçin" : undefined}
+                    title={sizes.length > 0 && effectiveSelectedSizes.length === 0 ? t("product.selectSize") : undefined}
                   >
-                    Sepete ekle
+                    {t("designer.addToCart")}
                   </button>
                 </>
               )}
@@ -931,7 +937,7 @@ export function ProductConfigurator({
 
           <div className="ru-sticky-actions">
             <button type="button" className="ru-sticky-primary" onClick={handleDesignNow}>
-              Design Now
+              {t("common.designNow")}
             </button>
             <p className="ru-sticky-note">Shipping costs are calculated at checkout</p>
           </div>

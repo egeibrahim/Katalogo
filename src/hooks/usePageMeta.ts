@@ -25,6 +25,10 @@ const FALLBACKS: SiteMetaSettings = {
   defaultOgImageUrl: "",
 };
 
+function normalizeLegacyBrand(value: string) {
+  return value.replace(/newcatalog/gi, "Katalogo");
+}
+
 function setOrCreateMeta(selector: string, attrs: Record<string, string>, content: string) {
   if (typeof document === "undefined") return;
   const head = document.head;
@@ -68,11 +72,15 @@ export function useSiteMetaSettings() {
   const { data } = useAppSettings(["site_name", "title_template", "default_meta_description", "default_og_image_url"]);
 
   return useMemo<SiteMetaSettings>(() => {
+    const rawSiteName = (data?.site_name || FALLBACKS.siteName).trim() || FALLBACKS.siteName;
+    const rawTitleTemplate = (data?.title_template || FALLBACKS.titleTemplate).trim() || FALLBACKS.titleTemplate;
+    const rawDefaultDescription =
+      (data?.default_meta_description || FALLBACKS.defaultDescription).trim() || FALLBACKS.defaultDescription;
+
     return {
-      siteName: (data?.site_name || FALLBACKS.siteName).trim() || FALLBACKS.siteName,
-      titleTemplate: (data?.title_template || FALLBACKS.titleTemplate).trim() || FALLBACKS.titleTemplate,
-      defaultDescription:
-        (data?.default_meta_description || FALLBACKS.defaultDescription).trim() || FALLBACKS.defaultDescription,
+      siteName: normalizeLegacyBrand(rawSiteName),
+      titleTemplate: normalizeLegacyBrand(rawTitleTemplate),
+      defaultDescription: normalizeLegacyBrand(rawDefaultDescription),
       defaultOgImageUrl: (data?.default_og_image_url || FALLBACKS.defaultOgImageUrl || "").trim(),
     };
   }, [data]);

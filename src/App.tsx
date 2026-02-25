@@ -13,7 +13,6 @@ import ProductPageV2 from "./pages/ProductPageV2";
 import ProductPageV2Copy from "./pages/ProductPageV2Copy";
 import NewcatalogCollectionAll from "./pages/NewcatalogCollectionAll";
 import NewcatalogCollectionCategory from "./pages/NewcatalogCollectionCategory";
-import Features from "./pages/Features";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
 import Blog from "./pages/Blog";
@@ -41,6 +40,7 @@ import PublicCatalogList from "@/pages/PublicCatalogList";
 import CartPage from "./pages/CartPage";
 import { CartProvider } from "./contexts/CartContext";
 import { PrelineInit } from "@/components/PrelineInit";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,7 +65,6 @@ const App = () => (
               <Route path="/" element={<Landing />} />
               <Route path="/designer" element={<Designer />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/features" element={<Features />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/brands" element={<PublicCatalogList />} />
@@ -76,9 +75,30 @@ const App = () => (
               <Route path="/product-v2/id/:id" element={<ProductPageV2 />} />
               <Route path="/product-v2-copy/:slug" element={<ProductPageV2Copy />} />
               <Route path="/product-v2-copy/id/:id" element={<ProductPageV2Copy />} />
-              <Route path="/collection/all" element={<NewcatalogCollectionAll />} />
-              <Route path="/catalog/all" element={<NewcatalogCollectionAll />} />
-              <Route path="/collection/:slug" element={<NewcatalogCollectionCategory />} />
+              <Route
+                path="/collection/all"
+                element={
+                  <RequireAuth>
+                    <NewcatalogCollectionAll />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/catalog/all"
+                element={
+                  <RequireAuth>
+                    <NewcatalogCollectionAll />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/collection/:slug"
+                element={
+                  <RequireAuth>
+                    <NewcatalogCollectionCategory />
+                  </RequireAuth>
+                }
+              />
               <Route path="/cart" element={<CartPage />} />
 
               <Route

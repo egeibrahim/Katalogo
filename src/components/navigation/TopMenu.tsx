@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Search, ShoppingCart, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { LOCALES, type Locale } from "@/lib/i18n/locales";
 
 const TOP_NAV = [
   { label: "Catalog", to: "/catalog/all" },
@@ -16,6 +19,7 @@ const TOP_NAV = [
 
 export function TopMenu() {
   const { user, signInWithGoogle } = useAuth();
+  const { t, locale, setLocale } = useI18n();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -29,7 +33,7 @@ export function TopMenu() {
     const { error } = await signInWithGoogle();
     if (error) {
       toast({
-        title: "Google sign-in failed",
+        title: t("auth.googleFailed"),
         description: error.message,
         variant: "destructive",
       });
@@ -39,8 +43,8 @@ export function TopMenu() {
   return (
     <header className={`sticky top-0 z-50 border-b topbar-landing-standard ${scrolled ? "topbar-landing-standard--scrolled" : ""}`}>
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
-        <Link to="/home" className="text-sm font-semibold tracking-tight" aria-label="CatalogApp">
-          CATALOGAPP
+        <Link to="/home" className="text-sm font-semibold tracking-tight" aria-label={t("legacy.topmenu.brand")}>
+          {t("legacy.topmenu.brand").toUpperCase()}
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium md:flex" aria-label="Top menu">
@@ -61,13 +65,24 @@ export function TopMenu() {
           <Button variant="ghost" size="icon" aria-label="Search">
             <Search className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Cart">
+          <Button variant="ghost" size="icon" aria-label={t("nav.cart")}>
             <ShoppingCart className="h-4 w-4" />
           </Button>
 
           <div className="hidden items-center gap-2 text-sm font-medium text-muted-foreground md:flex">
             <Globe className="h-4 w-4" aria-hidden />
-            <span>USD</span>
+            <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
+              <SelectTrigger className="h-8 w-[80px] bg-transparent">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {LOCALES.map((it) => (
+                  <SelectItem key={it.value} value={it.value}>
+                    {it.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {!user ? (
@@ -78,20 +93,20 @@ export function TopMenu() {
                 className="hidden md:inline-flex"
                 onClick={onGoogle}
               >
-                Continue with Google
+                {t("nav.continueWithGoogle")}
               </Button>
 
               <Link className="hidden text-sm font-medium md:inline-flex" to="/auth">
-                Login
+                {t("nav.login")}
               </Link>
 
               <Button asChild>
-                <Link to="/pricing">Get Started</Link>
+                <Link to="/pricing">{t("nav.getStarted")}</Link>
               </Button>
             </>
           ) : (
             <Button asChild>
-              <Link to="/catalog/all">Catalog</Link>
+              <Link to="/catalog/all">{t("nav.catalog")}</Link>
             </Button>
           )}
         </div>

@@ -3,13 +3,6 @@ import { Link } from "react-router-dom";
 
 const footerCols = [
   {
-    title: "Catalog",
-    links: [
-      { label: "All Products", to: "/catalog/all" },
-      { label: "Categories", to: "/catalog/all" },
-    ],
-  },
-  {
     title: "Info",
     links: [
       { label: "About", to: "/about" },

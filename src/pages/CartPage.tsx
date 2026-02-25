@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { ChevronDown, Info } from "lucide-react";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 function CartItemImage({ src }: { src: string | null | undefined }) {
   const [displaySrc, setDisplaySrc] = useState<string | null>(src ?? null);
@@ -82,6 +83,7 @@ function CartItemRow({
   updateQuantityBySize: (itemId: string, size: string, quantity: number) => void;
   removeItem: (itemId: string) => void;
 }) {
+  const { t } = useI18n();
   const { data: attrsRow } = usePublicProductAttributes(item.productId);
   const { data: sizes } = usePublicProductSizes(item.productId);
   const attrs = (attrsRow?.data ?? {}) as Record<string, unknown>;
@@ -102,7 +104,7 @@ function CartItemRow({
   const handleSizeQtyChange = (size: string, v: number) => {
     const capped = maxQty != null ? Math.min(Math.max(0, v), maxQty) : Math.max(0, v);
     if (maxQty != null && v > maxQty) {
-      toast.info(`Kalan stok: ${maxQty} adet. En fazla ${maxQty} adet seçebilirsiniz.`);
+      toast.info(t("cart.remainingStock", { count: maxQty }));
     }
     updateQuantityBySize(item.id, size, capped);
   };
@@ -114,7 +116,7 @@ function CartItemRow({
     }
     const capped = maxQty != null ? Math.min(v, maxQty) : v;
     if (maxQty != null && v > maxQty) {
-      toast.info(`Kalan stok: ${maxQty} adet. En fazla ${maxQty} adet seçebilirsiniz.`);
+      toast.info(t("cart.remainingStock", { count: maxQty }));
     }
     updateQuantity(item.id, capped);
   };
@@ -130,7 +132,7 @@ function CartItemRow({
             type="checkbox"
             checked={selected}
             onChange={(e) => onSelect(e.target.checked)}
-            aria-label={`Seç: ${item.name}`}
+            aria-label={`${t("common.all")}: ${item.name}`}
             className="h-4 w-4 rounded border-input"
           />
         </div>
@@ -146,25 +148,25 @@ function CartItemRow({
             {item.selectedColorName ? ` / ${item.selectedColorName}` : ""}
           </p>
           {item.designData && Object.keys(item.designData).length > 0 ? (
-            <span className="ru-cart-item-tech inline-block mt-1">Tasarımlı{item.designName ? `: ${item.designName}` : ""}</span>
+            <span className="ru-cart-item-tech inline-block mt-1">{t("cart.item.designed")}{item.designName ? `: ${item.designName}` : ""}</span>
           ) : null}
           {item.selectedTechnique ? (
             <span className="ru-cart-item-tech">{item.selectedTechnique}</span>
           ) : null}
           {item.selectedPlacements && item.selectedPlacements.length > 0 ? (
             <p className="text-xs text-muted-foreground mt-1">
-              Baskı alanları: {item.selectedPlacements.map((p) => p.name).filter(Boolean).join(", ")}
+              {t("cart.item.printAreas")}: {item.selectedPlacements.map((p) => p.name).filter(Boolean).join(", ")}
             </p>
           ) : null}
           <div className="ru-cart-item-links">
-            <Link to={designerUrl}>Design</Link>
-            <Link to={productUrl}>Ürün</Link>
+            <Link to={designerUrl}>{t("common.designNow")}</Link>
+            <Link to={productUrl}>{t("common.product")}</Link>
             <button
               type="button"
               className="text-destructive"
               onClick={() => removeItem(item.id)}
             >
-              Remove
+              {t("common.remove")}
             </button>
           </div>
         </div>
@@ -228,7 +230,7 @@ function CartItemRow({
                 handleQtyChange(Number.isNaN(v) ? 1 : v);
               }}
               className="ru-cart-qty-input"
-              aria-label="Adet"
+              aria-label={t("common.quantity")}
             />
             <button
               type="button"
@@ -252,7 +254,8 @@ function CartItemRow({
 }
 
 export default function CartPage() {
-  usePageMeta({ title: "Sepet", noIndex: true });
+  const { t } = useI18n();
+  usePageMeta({ title: t("cart.metaTitle"), noIndex: true });
   const { user } = useAuth();
   const { data: membership } = useUserMembership(user?.id ?? null);
   const allowedCart = canUseCart(membership?.plan);
@@ -278,7 +281,7 @@ export default function CartPage() {
     if (selectedIds.size === 0) return;
     selectedIds.forEach((id) => removeItem(id));
     setSelectedIds(new Set());
-    toast.success("Seçilen ürünler sepetten kaldırıldı.");
+    toast.success(t("cart.selectedRemoved"));
   };
 
   if (user && !allowedCart) {
@@ -286,10 +289,10 @@ export default function CartPage() {
       <NewcatalogChrome activeCategory="All">
         <div className="ru-max w-full py-12 px-4 text-center">
           <p className="text-muted-foreground mb-4">
-            Sepet ve teklif özelliği Marka veya Kurumsal planında sunulur.
+            {t("cart.featureLocked")}
           </p>
           <Link to="/pricing" className="ru-pill">
-            Fiyatlandırmaya git
+            {t("cart.goPricing")}
           </Link>
         </div>
       </NewcatalogChrome>
@@ -299,13 +302,13 @@ export default function CartPage() {
   return (
     <NewcatalogChrome activeCategory="All">
       <div className="ru-max w-full">
-        <section className="w-full py-8 px-4 md:px-6" aria-label="Sepet">
-          <h1 className="ru-cart-title">Cart ({totalCount})</h1>
+        <section className="w-full py-8 px-4 md:px-6" aria-label={t("cart.title")}>
+          <h1 className="ru-cart-title">{t("cart.title")} ({totalCount})</h1>
           {items.length === 0 ? (
             <div className="mt-6 rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-              <p className="mb-4">Sepetiniz boş.</p>
+              <p className="mb-4">{t("cart.empty")}</p>
               <Link to="/catalog/all" className="ru-pill">
-                Kataloga git
+                {t("cart.goCatalog")}
               </Link>
             </div>
           ) : (
@@ -319,24 +322,24 @@ export default function CartPage() {
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       className="h-4 w-4 rounded border-input"
                     />
-                    <span className="text-sm">All</span>
+                    <span className="text-sm">{t("common.all")}</span>
                   </label>
                   <button
                     type="button"
                     className="ru-cart-action-link"
                     onClick={handleRemoveSelected}
                   >
-                    Remove
+                    {t("common.remove")}
                   </button>
                   <Link to="/catalog/all" className="ru-cart-action-link">
-                    Branding
+                    {t("cart.actions.branding")}
                   </Link>
                   <button
                     type="button"
                     className="ru-cart-action-link"
                     onClick={() => setQuoteFormOpen(true)}
                   >
-                    Save as draft
+                    {t("cart.actions.saveDraft")}
                   </button>
                 </div>
 
@@ -361,17 +364,17 @@ export default function CartPage() {
               </div>
 
               <aside className="ru-cart-summary">
-                <h2 className="ru-cart-summary-title">Order summary</h2>
+                <h2 className="ru-cart-summary-title">{t("cart.summary.title")}</h2>
                 <div className="ru-cart-summary-row muted">
-                  <span>Product ({totalCount} items)</span>
+                  <span>{t("cart.summary.productItems", { count: totalCount })}</span>
                   <span>{formatPrice(productSubtotal)}</span>
                 </div>
                 <div className="ru-cart-summary-row muted">
-                  <span>Customization</span>
+                  <span>{t("cart.summary.customization")}</span>
                   <span>$0.00</span>
                 </div>
                 <div className="ru-cart-summary-row muted">
-                  <span>Shipping</span>
+                  <span>{t("cart.summary.shipping")}</span>
                   <span className="flex items-center gap-1">
                     TBD
                     <Info className="h-4 w-4" aria-hidden />
@@ -379,16 +382,16 @@ export default function CartPage() {
                 </div>
                 <div className="ru-cart-summary-divider" />
                 <div className="ru-cart-summary-row ru-cart-summary-total">
-                  <span>Total</span>
+                  <span>{t("common.total")}</span>
                   <span>USD {productSubtotal.toFixed(2)}</span>
                 </div>
                 <Button
                   type="button"
                   className="ru-cart-checkout-btn bg-primary text-primary-foreground hover:bg-primary/90"
                   disabled={totalCount === 0 || productSubtotal <= 0}
-                  onClick={() => toast.info("Checkout yakında aktif olacak.")}
+                  onClick={() => toast.info(t("cart.summary.checkoutSoon"))}
                 >
-                  Checkout
+                  {t("cart.summary.checkout")}
                 </Button>
                 <Button
                   type="button"
@@ -396,7 +399,7 @@ export default function CartPage() {
                   className="ru-cart-checkout-btn mt-2"
                   onClick={() => setQuoteFormOpen(true)}
                 >
-                  Teklif iste
+                  {t("cart.summary.requestQuote")}
                 </Button>
               </aside>
             </div>
@@ -412,6 +415,7 @@ export default function CartPage() {
 }
 
 function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () => void }) {
+  const { t } = useI18n();
   const [companyName, setCompanyName] = useState("");
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
@@ -462,8 +466,8 @@ function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () =
     if (error) {
       setSubmitting(false);
       console.error("Quote request insert error:", error);
-      const msg = error.message || "Teklif gönderilemedi. Lütfen tekrar deneyin.";
-      toast.error(msg.includes("does not exist") ? "Teklif tablosu henüz oluşturulmamış. Lütfen yöneticiyle iletişime geçin." : msg);
+      const msg = error.message || t("cart.quote.sendFailed");
+      toast.error(msg.includes("does not exist") ? t("cart.quote.tableMissing") : msg);
       return;
     }
 
@@ -472,22 +476,22 @@ function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () =
     });
 
     setSubmitting(false);
-    toast.success("Teklif talebiniz alındı. En kısa sürede size dönüş yapılacaktır.");
+    toast.success(t("cart.quote.success"));
     onClose();
   };
 
   return (
     <div className="mt-10 rounded-xl border border-border bg-card shadow-sm">
       <div className="border-b border-border bg-muted/30 px-6 py-5">
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">Teklif talebi</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">{t("cart.quote.title")}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Sepetinizdeki ürünlerin detaylarını kontrol edin ve iletişim bilgilerinizi girin. Talebiniz tarafımıza iletilecektir.
+          {t("cart.quote.subtitle")}
         </p>
       </div>
 
       <div className="p-6">
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Ürün detayları
+          {t("cart.quote.productDetails")}
         </h3>
         <div className="space-y-5">
           {items.map((item) => (
@@ -502,29 +506,29 @@ function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () =
                 <div>
                   <p className="font-semibold text-foreground">{item.name}</p>
                   {item.product_code ? (
-                    <p className="text-xs text-muted-foreground">Ürün kodu: {item.product_code}</p>
+                    <p className="text-xs text-muted-foreground">{t("cart.quote.productCode")}: {item.product_code}</p>
                   ) : null}
                   {item.designData && Object.keys(item.designData).length > 0 ? (
                     <p className="text-xs text-primary font-medium mt-0.5">
-                      Tasarımlı{item.designName ? ` — ${item.designName}` : ""}
+                      {t("cart.item.designed")}{item.designName ? ` — ${item.designName}` : ""}
                     </p>
                   ) : null}
                 </div>
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
                   <div>
-                    <dt className="text-muted-foreground">Beden</dt>
+                    <dt className="text-muted-foreground">{t("common.size")}</dt>
                     <dd className="font-medium">{item.selectedSize ?? "—"}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Renk</dt>
+                    <dt className="text-muted-foreground">{t("common.color")}</dt>
                     <dd className="font-medium">{item.selectedColorName ?? "—"}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Teknik</dt>
+                    <dt className="text-muted-foreground">{t("cart.quote.technique")}</dt>
                     <dd className="font-medium">{item.selectedTechnique ?? "—"}</dd>
                   </div>
                   <div className="col-span-2 sm:col-span-3">
-                    <dt className="text-muted-foreground">Baskı alanı</dt>
+                    <dt className="text-muted-foreground">{t("cart.quote.printArea")}</dt>
                     <dd className="font-medium">
                       {item.selectedPlacements?.length
                         ? item.selectedPlacements.map((p) => (p.price ? `${p.name} (${p.price})` : p.name)).join(", ")
@@ -532,17 +536,17 @@ function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () =
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Adet</dt>
+                    <dt className="text-muted-foreground">{t("common.quantity")}</dt>
                     <dd className="font-medium">{item.quantity}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Birim fiyat</dt>
+                    <dt className="text-muted-foreground">{t("cart.quote.unitPrice")}</dt>
                     <dd className="font-medium">
                       {formatPrice((item.price_from ?? 0) + (item.placementFeePerItem ?? 0))}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Satır toplamı</dt>
+                    <dt className="text-muted-foreground">{t("cart.quote.lineTotal")}</dt>
                     <dd className="font-semibold text-foreground">{formatPrice(lineTotal(item))}</dd>
                   </div>
                 </dl>
@@ -553,86 +557,86 @@ function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () =
 
         <div className="mt-6 flex justify-end border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">
-            Genel toplam: <span className="text-lg font-semibold text-foreground">{formatPrice(grandTotal)}</span>
+            {t("cart.quote.grandTotal")}: <span className="text-lg font-semibold text-foreground">{formatPrice(grandTotal)}</span>
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="border-t border-border bg-muted/10 px-6 py-6">
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          İletişim bilgileri
+          {t("cart.quote.contactInfo")}
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="quote-company">Firma adı</Label>
+            <Label htmlFor="quote-company">{t("cart.quote.company")}</Label>
             <Input
               id="quote-company"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Firma veya şirket adı"
+              placeholder={t("cart.quote.companyPlaceholder")}
               className="bg-background"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="quote-contact">İletişim kişisi</Label>
+            <Label htmlFor="quote-contact">{t("cart.quote.contactPerson")}</Label>
             <Input
               id="quote-contact"
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
-              placeholder="Ad Soyad"
+              placeholder={t("cart.quote.contactPlaceholder")}
               className="bg-background"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="quote-email">E-posta *</Label>
+            <Label htmlFor="quote-email">{t("auth.email")} *</Label>
             <Input
               id="quote-email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ornek@firma.com"
+              placeholder={t("cart.quote.emailPlaceholder")}
               className="bg-background"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="quote-phone">Telefon</Label>
+            <Label htmlFor="quote-phone">{t("cart.quote.phone")}</Label>
             <Input
               id="quote-phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+90 5XX XXX XX XX"
+              placeholder={t("cart.quote.phonePlaceholder")}
               className="bg-background"
             />
           </div>
         </div>
         <div className="mt-4 space-y-2">
-          <Label htmlFor="quote-address">Adres</Label>
+          <Label htmlFor="quote-address">{t("cart.quote.address")}</Label>
           <Input
             id="quote-address"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="Teslimat adresi"
+            placeholder={t("cart.quote.addressPlaceholder")}
             className="bg-background"
           />
         </div>
         <div className="mt-4 space-y-2">
-          <Label htmlFor="quote-notes">Notlar</Label>
+          <Label htmlFor="quote-notes">{t("cart.quote.notes")}</Label>
           <Input
             id="quote-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ek notlar veya özel istekler"
+            placeholder={t("cart.quote.notesPlaceholder")}
             className="bg-background"
           />
         </div>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button type="submit" size="lg" className="ru-btn-primary" disabled={submitting}>
-            {submitting ? "Gönderiliyor…" : "Teklif gönder"}
+            {submitting ? t("cart.quote.submitting") : t("cart.quote.submit")}
           </Button>
           <Button type="button" variant="outline" size="lg" onClick={onClose}>
-            İptal
+            {t("common.cancel")}
           </Button>
         </div>
       </form>

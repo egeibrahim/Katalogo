@@ -15,21 +15,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { getPlanDisplayName } from "@/lib/planFeatures";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { LOCALES, type Locale } from "@/lib/i18n/locales";
 import { Search } from "lucide-react";
 
 const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
-  { prefix: "/admin/dashboard", title: "Dashboard", subtitle: "Overview & quick stats" },
-  { prefix: "/admin/products", title: "Products", subtitle: "Manage your catalog" },
-  { prefix: "/admin/categories", title: "Categories", subtitle: "Organize your catalog" },
-  { prefix: "/admin/filters", title: "Filters", subtitle: "Filters & product specs" },
-  { prefix: "/admin/media", title: "Media", subtitle: "Reusable assets library" },
-  { prefix: "/admin/users", title: "Users", subtitle: "Team & permissions" },
-  { prefix: "/admin/import", title: "Import", subtitle: "Load data from CSV" },
-  { prefix: "/admin/export", title: "Export", subtitle: "Toplu CSV → ZIP" },
-  { prefix: "/admin/settings", title: "Settings", subtitle: "Workspace preferences" },
+  { prefix: "/admin/dashboard", title: "admin.dashboard", subtitle: "admin.subtitle.dashboard" },
+  { prefix: "/admin/products", title: "admin.products", subtitle: "admin.subtitle.products" },
+  { prefix: "/admin/categories", title: "admin.categories", subtitle: "admin.subtitle.categories" },
+  { prefix: "/admin/filters", title: "admin.filters", subtitle: "admin.subtitle.filters" },
+  { prefix: "/admin/media", title: "admin.media", subtitle: "admin.subtitle.media" },
+  { prefix: "/admin/users", title: "admin.users", subtitle: "admin.subtitle.users" },
+  { prefix: "/admin/import", title: "admin.import", subtitle: "admin.subtitle.import" },
+  { prefix: "/admin/export", title: "admin.export", subtitle: "admin.subtitle.export" },
+  { prefix: "/admin/settings", title: "admin.settings", subtitle: "admin.subtitle.settings" },
 ];
 
 export function AdminTopbar() {
@@ -38,6 +41,7 @@ export function AdminTopbar() {
   const { session, role, isAdmin, signOut } = useAuth();
   const { data: membership } = useUserMembership(session?.user?.id ?? null);
   const [scrolled, setScrolled] = useState(false);
+  const { t, locale, setLocale } = useI18n();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -48,7 +52,7 @@ export function AdminTopbar() {
 
   const meta = useMemo(() => {
     const hit = TITLES.find((t) => location.pathname.startsWith(t.prefix));
-    return hit ?? { title: "Admin", subtitle: "" };
+    return hit ?? { title: "admin.titleAdmin", subtitle: "" };
   }, [location.pathname]);
 
   const email = session?.user?.email ?? "";
@@ -63,19 +67,34 @@ export function AdminTopbar() {
         <Separator orientation="vertical" className="h-6" />
 
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">{meta.title}</p>
-          <p className="truncate text-xs text-muted-foreground">{meta.subtitle}</p>
+          <p className="truncate text-sm font-semibold text-foreground">{t(meta.title)}</p>
+          <p className="truncate text-xs text-muted-foreground">{meta.subtitle ? t(meta.subtitle) : ""}</p>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
           <div className="relative hidden md:block">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="h-9 w-[280px] pl-8" placeholder="Search…" aria-label="Search" />
+            <Input className="h-9 w-[280px] pl-8" placeholder={t("admin.searchPlaceholder")} aria-label={t("nav.search")} />
+          </div>
+
+          <div className="hidden md:inline-flex items-center">
+            <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
+              <SelectTrigger className="h-9 w-[84px] bg-transparent">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {LOCALES.map((it) => (
+                  <SelectItem key={it.value} value={it.value}>
+                    {it.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {!session ? (
             <Button asChild variant="outline" size="sm" className="h-9">
-              <Link to="/auth">Giriş</Link>
+              <Link to="/auth">{t("nav.login")}</Link>
             </Button>
           ) : (
             <DropdownMenu>
@@ -101,7 +120,7 @@ export function AdminTopbar() {
                     navigate("/", { replace: true });
                   }}
                 >
-                  Çıkış Yap
+                  {t("nav.logoutLong")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

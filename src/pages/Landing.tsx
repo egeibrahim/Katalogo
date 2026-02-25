@@ -3,24 +3,26 @@ import "./landing-awake.css";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { ArrowRight, Sparkles, Palette, LayoutGrid, FileText, BarChart3 } from "lucide-react";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 const AWAKE_BASE = "/awake";
 
-const FAQ_ITEMS = [
-  { q: "Katalogo ne sunar?", a: "Ürün kataloğu yönetimi, koleksiyonlar, yerleşik ürün tasarımcısı ve marka sayfası ile teklif talepleri. Ücretsiz planla başlayabilirsin." },
-  { q: "Nasıl başlarım?", a: "Giriş yap veya ücretsiz hesap oluştur, ürünlerini ekle, koleksiyonları kur. Marka sayfan ve tasarımcı tek panelden erişilebilir." },
-  { q: "Fiyatlandırma nasıl?", a: "Kişisel plan ücretsiz. Marka ve Premium (özel alan adı) planları yakında. Fiyatlandırma sayfasından güncel bilgi alabilirsin." },
-];
-
 export default function Landing() {
-  usePageMeta({ title: "Katalogo – Ürün kataloğunu tasarla ve yayınla" });
+  const { t } = useI18n();
+  usePageMeta({ title: t("landing.metaTitle") });
+
+  const FAQ_ITEMS = [
+    { q: t("landing.faqQ1"), a: t("landing.faqA1") },
+    { q: t("landing.faqQ2"), a: t("landing.faqA2") },
+    { q: t("landing.faqQ3"), a: t("landing.faqA3") },
+  ];
 
   const services = [
-    { icon: Palette, title: "Koleksiyonlar", class: "landing-card--purple" },
-    { icon: LayoutGrid, title: "Tasarımcı", class: "landing-card--blue" },
-    { icon: FileText, title: "Marka sayfası", class: "landing-card--orange" },
-    { icon: BarChart3, title: "Teklifler", class: "landing-card--green" },
-    { icon: Sparkles, title: "Yayın", class: "landing-card--red" },
+    { icon: Palette, title: t("landing.servicesCollections"), class: "landing-card--purple" },
+    { icon: LayoutGrid, title: t("landing.servicesDesigner"), class: "landing-card--blue" },
+    { icon: FileText, title: t("landing.servicesBrandPage"), class: "landing-card--orange" },
+    { icon: BarChart3, title: t("landing.servicesQuotes"), class: "landing-card--green" },
+    { icon: Sparkles, title: t("landing.servicesPublish"), class: "landing-card--red" },
   ];
 
   const workItems = [
@@ -51,14 +53,14 @@ export default function Landing() {
       <section className="landing-hero">
         <div className="landing-hero-inner landing-section-inner">
           <h1>
-            Cesur markaları <em className="font-instrument">akıllı tasarımla</em> inşa ediyoruz
+            {t("landing.heroTitle")}
           </h1>
           <p className="landing-hero-p">
-            Katalogo ile küçük işletmeler ürün kataloğunu tek yerden yönetir; stratejiden yayına kadar rehberlik ederiz.
+            {t("landing.heroSubtitle")}
           </p>
           <div className="landing-btn-wrap">
             <Link to="/pricing" className="landing-btn-primary">
-              Ücretsiz başla
+              {t("landing.startFree")}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
           </div>
@@ -68,7 +70,7 @@ export default function Landing() {
                 <img key={i} src={`${AWAKE_BASE}/profile/user-${i}.jpg`} alt="" />
               ))}
             </div>
-            <p className="landing-trusted-text">200+ marka tarafından güvenilir</p>
+            <p className="landing-trusted-text">{t("landing.trusted")}</p>
           </div>
         </div>
       </section>
@@ -88,25 +90,25 @@ export default function Landing() {
       <section className="landing-section" id="aboutus">
         <div className="landing-section-inner">
           <h2 className="landing-title-center">
-            Deneyim ve teknoloji odaklı stratejilerle <em className="font-instrument">etkili sonuçlar</em>
+            {t("landing.resultsTitle")}
           </h2>
           <div className="landing-pills">
-            <span className="landing-pill landing-pill--secondary">Yaratıcılık</span>
-            <span className="landing-pill landing-pill--info">İnovasyon</span>
-            <span className="landing-pill landing-pill--orange">Strateji</span>
+            <span className="landing-pill landing-pill--secondary">{t("landing.pillCreativity")}</span>
+            <span className="landing-pill landing-pill--info">{t("landing.pillInnovation")}</span>
+            <span className="landing-pill landing-pill--orange">{t("landing.pillStrategy")}</span>
           </div>
           <div className="landing-stats">
             <div>
               <div className="landing-stat-num">+40</div>
-              <div className="landing-stat-label">Tamamlanan proje</div>
+              <div className="landing-stat-label">{t("landing.statProjects")}</div>
             </div>
             <div>
               <div className="landing-stat-num">+15</div>
-              <div className="landing-stat-label">Yıllık deneyim</div>
+              <div className="landing-stat-label">{t("landing.statYears")}</div>
             </div>
             <div>
               <div className="landing-stat-num">+12</div>
-              <div className="landing-stat-label">Tasarım ödülü</div>
+              <div className="landing-stat-label">{t("landing.statAwards")}</div>
             </div>
           </div>
         </div>
@@ -116,7 +118,7 @@ export default function Landing() {
       <section className="landing-section" id="services">
         <div className="landing-section-inner">
           <h2 className="landing-title-center">
-            İnovasyon <em className="font-instrument">estetikle</em> buluşuyor
+            {t("landing.servicesTitle")}
           </h2>
           <div className="landing-cards">
             {services.map(({ icon: Icon, title, class: c }) => (
@@ -127,14 +129,14 @@ export default function Landing() {
             ))}
           </div>
           <div className="landing-cta-bar">
-            <h3>İşlerimizi inceleyin. Yaratıcı yolculuğa birlikte başlayalım.</h3>
+            <h3>{t("landing.workCtaTitle")}</h3>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", justifyContent: "center" }}>
               <Link to="/pricing" className="landing-btn-white">
-                Hemen başla
+                {t("landing.startNow")}
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
               <Link to="/catalog/all" className="landing-btn-outline-light">
-                Kataloğu gör
+                {t("landing.viewCatalog")}
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </div>
@@ -146,7 +148,7 @@ export default function Landing() {
       <section className="landing-section" id="work">
         <div className="landing-section-inner">
           <h2 className="landing-title-center">
-            Küçük işletmelerin <em className="font-instrument">çevrimiçi varlığını</em> nasıl dönüştürdük
+            {t("landing.workTitle")}
           </h2>
           <div className="landing-work-grid">
             {workItems.map(({ img, title, tags }) => (
@@ -155,7 +157,7 @@ export default function Landing() {
                   <img src={img} alt={title} />
                 </div>
                 <div>
-                  <Link to="/features" className="landing-work-title">{title}</Link>
+                  <span className="landing-work-title">{title}</span>
                   <div className="landing-work-badges">
                     {tags.map((t) => (
                       <span key={t}>{t}</span>
@@ -172,7 +174,7 @@ export default function Landing() {
       <section className="landing-section" id="team">
         <div className="landing-section-inner">
           <h2 className="landing-title-center">
-            Başarımızın arkasındaki <em className="font-instrument">yaratıcı ekip</em>
+            {t("landing.teamTitle")}
           </h2>
           <div className="landing-team-grid">
             {team.map(({ img, name, role }) => (
@@ -189,16 +191,16 @@ export default function Landing() {
       {/* Testimonial – tek blok */}
       <section className="landing-section landing-section-alt">
         <div className="landing-section-inner">
-          <h2 className="landing-title-center">Müşterilerimiz ne diyor?</h2>
+          <h2 className="landing-title-center">{t("landing.testimonialTitle")}</h2>
           <div className="landing-quote-card" style={{ maxWidth: 640, margin: "0 auto" }}>
             <p>
-              "Katalogo'nun uzmanlığı vizyonumu yaratıcılık, hassasiyet ve hedeflerimi anlayarak başarıya taşıdı."
+              {t("landing.testimonialBody")}
             </p>
             <footer>
               <cite>
                 <span className="landing-quote-name">Sarah Mitchell</span>
                 <br />
-                <span className="landing-quote-role">Chipsland Kurucusu</span>
+                <span className="landing-quote-role">{t("landing.testimonialRole")}</span>
               </cite>
             </footer>
           </div>
@@ -208,7 +210,7 @@ export default function Landing() {
       {/* FAQ */}
       <section className="landing-section landing-section-alt" id="faq">
         <div className="landing-section-inner">
-          <h2 className="landing-title-center">Sorularınız mı var? Cevaplar burada</h2>
+          <h2 className="landing-title-center">{t("landing.faqTitle")}</h2>
           <div className="landing-faq">
             {FAQ_ITEMS.map(({ q, a }) => (
               <details key={q} className="landing-faq-item">
@@ -223,13 +225,13 @@ export default function Landing() {
       {/* Pricing CTA */}
       <section className="landing-section" id="pricing">
         <div className="landing-section-inner">
-          <h2 className="landing-title-center">İhtiyacına uygun planı seç</h2>
+          <h2 className="landing-title-center">{t("landing.pricingCtaTitle")}</h2>
           <p className="landing-muted landing-text-center landing-mt-4" style={{ maxWidth: 480, margin: "0 auto 2rem" }}>
-            Ücretsiz planla hemen başla; marka sayfası ve özel alan adı için planlar yakında.
+            {t("landing.pricingCtaSubtitle")}
           </p>
           <div className="landing-btn-wrap landing-text-center">
             <Link to="/pricing" className="landing-btn-primary">
-              Fiyatlandırmayı incele
+              {t("landing.reviewPricing")}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
           </div>
@@ -241,31 +243,28 @@ export default function Landing() {
         <div className="landing-footer-inner">
           <div className="landing-footer-grid">
             <div>
-              <h3>Hazır mısın?</h3>
-              <p className="landing-muted">Katalogo ile bugün başla.</p>
+              <h3>{t("landing.footerReady")}</h3>
+              <p className="landing-muted">{t("landing.footerStartToday")}</p>
               <Link to="/pricing" className="landing-link-blue landing-mt-3">
-                Ücretsiz başla
+                {t("landing.startFree")}
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </div>
             <div>
-              <h3>Ürün</h3>
+              <h3>{t("landing.footerProduct")}</h3>
               <ul>
-                <li><Link to="/features">Özellikler</Link></li>
-                <li><Link to="/designer">Tasarımcı</Link></li>
-                <li><Link to="/pricing">Fiyat</Link></li>
+                <li><Link to="/pricing">{t("nav.pricing")}</Link></li>
               </ul>
             </div>
             <div>
-              <h3>Katalogo</h3>
+              <h3>{t("landing.footerCompany")}</h3>
               <ul>
-                <li><Link to="/auth">Giriş</Link></li>
-                <li><Link to="/catalog/all">Katalog</Link></li>
+                <li><Link to="/auth">{t("nav.login")}</Link></li>
               </ul>
             </div>
           </div>
           <p className="landing-copy">
-            © {new Date().getFullYear()} Katalogo. Tüm hakları saklıdır.
+            © {new Date().getFullYear()} Katalogo. {t("landing.footerRights")}
           </p>
         </div>
       </footer>

@@ -13,15 +13,17 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 const ITEMS = [
-  { title: "Ürünler", url: "/brand/products", icon: Package },
-  { title: "Katalog", url: "/brand/catalog", icon: Library },
-  { title: "Kataloglarım", url: "/brand/catalogs", icon: BookOpen },
-  { title: "Kullanıcılar", url: "/brand/users", icon: Users },
+  { title: "brand.sidebarProducts", url: "/brand/products", icon: Package },
+  { title: "brand.sidebarCatalog", url: "/brand/catalog", icon: Library },
+  { title: "brand.sidebarCatalogs", url: "/brand/catalogs", icon: BookOpen },
+  { title: "brand.sidebarUsers", url: "/brand/users", icon: Users },
 ] as const;
 
 export function BusinessSidebar() {
+  const { t } = useI18n();
   const { collapsed } = useSidebar() as unknown as { collapsed?: boolean };
   const location = useLocation();
   const currentPath = location.pathname;
@@ -32,13 +34,13 @@ export function BusinessSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>
-            <span className="truncate">İş Paneli</span>
+            <span className="truncate">{t("brand.sidebarTitle")}</span>
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {ITEMS.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={t(item.title)}>
                     <NavLink
                       to={item.url}
                       className="w-full"
@@ -46,7 +48,7 @@ export function BusinessSidebar() {
                       aria-current={isActive(item.url) ? "page" : undefined}
                     >
                       <item.icon />
-                      {!collapsed ? <span>{item.title}</span> : null}
+                      {!collapsed ? <span>{t(item.title)}</span> : null}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

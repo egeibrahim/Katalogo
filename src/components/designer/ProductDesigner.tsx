@@ -10,7 +10,7 @@ import { CatalogBar } from "./CatalogBar";
 import { MockupStage } from "./MockupStage";
 import { UserMenu } from "./UserMenu";
 import { Button } from "@/components/ui/button";
-import { Download, Save, FileImage, Undo2, Redo2, Grid3X3, Maximize2, ZoomIn, ShoppingCart } from "lucide-react";
+import { Download, FileImage, Undo2, Redo2, Grid3X3, Maximize2, ZoomIn, ShoppingCart } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
@@ -28,6 +28,7 @@ import { useCart } from "@/contexts/CartContext";
 import { getDefaultCanvasArea, getFallbackCanvasArea } from "@/lib/productTemplates";
 import { sanitizeStorageFileName } from "@/lib/storage";
 import { resolveMugCapacity, getMugPrintArea, type MugCapacityKey } from "@/config/mug-print-specs";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 // Static mockups for fallback
 const tshirtMockup = "/mockups/tshirt-front.png";
 import hoodieMockup from "@/assets/hoodie-mockup.png";
@@ -44,6 +45,7 @@ const mockupImages: Record<string, string> = {
 const initialElements: DesignElement[] = [];
 
 export function ProductDesigner() {
+  const { t } = useI18n();
   const { isAdmin, user } = useAuth();
   const canManage = isAdmin;
   const { addItem: addToCart, items: cartItems } = useCart();
@@ -66,6 +68,8 @@ export function ProductDesigner() {
   const requestedProductId = searchParams.get("productId") || "";
   const requestedViewId = searchParams.get("viewId") || "";
   const requestedColorId = searchParams.get("colorId") || "";
+  const designerBrandSlug = searchParams.get("brandSlug");
+  const isBrandPageDesigner = Boolean(designerBrandSlug);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("upload");
   const [zoom, setZoom] = useState(100);
@@ -98,8 +102,6 @@ export function ProductDesigner() {
   const [mockupSaveProgress, setMockupSaveProgress] = useState(0);
   const [mockupSaveStatus, setMockupSaveStatus] = useState<string>("");
 
-  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [designName, setDesignName] = useState("");
   const [captureMode, setCaptureMode] = useState(false);
   const exportPendingRef = useRef<{ format: "png" | "pdf" | "original" } | null>(null);
 
@@ -771,7 +773,7 @@ export function ProductDesigner() {
     const paHeight = area?.height ?? NaN;
     const hasPrintArea = Number.isFinite(paLeft) && Number.isFinite(paTop) && paWidth > 0 && paHeight > 0;
     if (!hasPrintArea || printAreaIsEditing) {
-      toast.error("Önce baskı alanını oluşturup 'Kaydet ve kilitle' ile kaydedin.");
+      toast.error("Please create and save print area first.");
       return;
     }
     const x = paLeft + paWidth / 2;
@@ -813,7 +815,7 @@ export function ProductDesigner() {
     };
     setElements((prev) => [...prev, newElement]);
     handleSelectionChange([newElement.id], newElement.id);
-    toast.success("Tasarım görseli baskı alanına eklendi");
+    toast.success("Design image added to print area");
   };
 
   const requiresColorSelection = useMemo(() => {
@@ -823,16 +825,21 @@ export function ProductDesigner() {
 
   const ensureColorSelected = () => {
     if (!requiresColorSelection) return true;
-    toast.error("Mockup oluştuktan sonra devam etmek için renk seçmelisiniz");
+    toast.error(t("designer.selectColorAfterMockup"));
     return false;
   };
 
   const handleExport = async (format: "png" | "pdf" | "original") => {
     if (!ensureColorSelected()) return;
 
+    if (isBrandPageDesigner) {
+      toast.error(t("designer.exportBlockedBrand"));
+      return;
+    }
+
     // Enforce daily export limit for individual users only; admins are exempt.
     if (!user) {
-      toast.error("İndirme için giriş yapmalısın.");
+      toast.error(t("designer.loginForDownload"));
       return;
     }
 
@@ -843,12 +850,12 @@ export function ProductDesigner() {
       });
 
       if (error) {
-        toast.error("İndirme limiti kontrol edilemedi.");
+        toast.error(t("designer.exportLimitCheckFail"));
         return;
       }
 
       if (!ok) {
-        toast.error(`Günlük ${exportDailyLimit} indirme limitine ulaştın.`);
+        toast.error(t("designer.exportLimitReached", { count: exportDailyLimit }));
         return;
       }
     }
@@ -877,56 +884,18 @@ export function ProductDesigner() {
           link.download = `design-${currentViewId}.png`;
           link.href = imgData;
           link.click();
-          toast.success(`Design exported as ${format.toUpperCase()}`);
+          toast.success(t("designer.exportSuccess", { format: format.toUpperCase() }));
         })
         .catch(() => {
-          toast.error("Failed to export design");
+          toast.error(t("designer.exportFailed"));
         });
     }, 80);
     return () => clearTimeout(timer);
   }, [captureMode, currentViewId, selectedColorHex]);
 
-  const handleSaveDesign = async () => {
-    if (!ensureColorSelected()) return;
-
-    if (!designName.trim()) {
-      toast.error("Please enter a design name");
-      return;
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error("Please sign in to save designs");
-      return;
-    }
-
-    // Save current view elements first
-    const allDesigns = {
-      ...designsByView,
-      [currentViewId]: elements,
-    };
-
-    const { error } = await supabase.from("saved_designs").insert({
-      user_id: user.id,
-      product_id: currentProductId,
-      name: designName.trim(),
-      design_data: JSON.parse(JSON.stringify(allDesigns)),
-    });
-
-    if (!error) {
-      toast.success("Design saved successfully");
-      setSaveDialogOpen(false);
-      setDesignName("");
-    } else {
-      toast.error("Failed to save design");
-    }
-  };
-
   const handleAddToCartFromDesigner = useCallback(async () => {
     if (!currentProductId || !currentProductName) {
-      toast.error("Önce bir ürün seçin.");
+      toast.error(t("designer.selectProductFirst"));
       return;
     }
     let colorName: string | null = null;
@@ -954,11 +923,11 @@ export function ProductDesigner() {
         product_code: currentProductCode,
         cover_image_url: currentProductCoverUrl,
         selectedColorName: colorName ?? undefined,
-        ...(hasDesign ? { designData: designDataClone, designName: designName.trim() || undefined } : {}),
+        ...(hasDesign ? { designData: designDataClone } : {}),
       },
       1
     );
-    toast.success(hasDesign ? "Tasarım sepete eklendi. Sepette beden ve adeti güncelleyebilirsiniz." : "Ürün sepete eklendi.");
+    toast.success(hasDesign ? t("designer.addedToCartDesign") : t("designer.addedToCartProduct"));
   }, [
     currentProductId,
     currentProductName,
@@ -968,7 +937,6 @@ export function ProductDesigner() {
     currentProductCoverUrl,
     selectedColorId,
     designsByView,
-    designName,
     addToCart,
   ]);
 
@@ -1091,13 +1059,13 @@ export function ProductDesigner() {
     if (direction === "horizontal") {
       const next = (selectedElement.scaleX ?? 1) * -1;
       handleUpdateElement(selectedElement.id, { scaleX: next });
-      toast.success("Yatay çevirme uygulandı");
+      toast.success("Flipped horizontally");
       return;
     }
 
     const next = (selectedElement.scaleY ?? 1) * -1;
     handleUpdateElement(selectedElement.id, { scaleY: next });
-    toast.success("Dikey çevirme uygulandı");
+    toast.success("Flipped vertically");
   };
 
   /** Görsel üzerinde kırp modu (Tapstitch tarzı); null = kapalı */
@@ -1112,16 +1080,16 @@ export function ProductDesigner() {
 
   const handleRemoveBg = useCallback(async () => {
     if (!selectedElement || selectedElement.type !== "image" || !selectedElement.imageUrl) {
-      toast.error("Görsel seçin.");
+      toast.error("Select an image.");
       return;
     }
     const apiKey = import.meta.env.VITE_REMOVE_BG_API_KEY;
     if (!apiKey) {
-      toast.error("Arka plan kaldırma için VITE_REMOVE_BG_API_KEY tanımlayın (remove.bg API).");
+      toast.error("Define VITE_REMOVE_BG_API_KEY for background removal.");
       return;
     }
     try {
-      toast.loading("Arka plan kaldırılıyor…", { id: "removebg" });
+      toast.loading("Removing background…", { id: "removebg" });
       const form = new FormData();
       if (selectedElement.imageUrl.startsWith("blob:")) {
         const res = await fetch(selectedElement.imageUrl);
@@ -1145,15 +1113,15 @@ export function ProductDesigner() {
         URL.revokeObjectURL(selectedElement.imageUrl);
       }
       handleUpdateElement(selectedElement.id, { imageUrl: url });
-      toast.success("Arka plan kaldırıldı.", { id: "removebg" });
+      toast.success("Background removed.", { id: "removebg" });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Arka plan kaldırılamadı.", { id: "removebg" });
+      toast.error(e instanceof Error ? e.message : "Background removal failed.", { id: "removebg" });
     }
   }, [selectedElement, handleUpdateElement]);
 
   const handleCrop = useCallback(() => {
     if (!selectedElement || selectedElement.type !== "image" || !selectedElement.imageUrl) {
-      toast.error("Kırpılacak görsel seçin.");
+      toast.error("Select an image to crop.");
       return;
     }
     setCropModeElementId(selectedElement.id);
@@ -1176,7 +1144,7 @@ export function ProductDesigner() {
           imageUrlToLoad = URL.createObjectURL(blob);
           revokeAfterLoad = true;
         } catch {
-          toast.error("Kırpma için görsel yüklenemedi (CORS olabilir).");
+          toast.error("Image could not be loaded for crop (possible CORS).");
           setCropModeElementId(null);
           return;
         }
@@ -1191,7 +1159,7 @@ export function ProductDesigner() {
         });
       } catch {
         if (revokeAfterLoad) URL.revokeObjectURL(imageUrlToLoad);
-        toast.error("Kırpma için görsel yüklenemedi.");
+        toast.error("Image could not be loaded for crop.");
         setCropModeElementId(null);
         return;
       }
@@ -1221,7 +1189,7 @@ export function ProductDesigner() {
             if (el.imageUrl?.startsWith("blob:")) URL.revokeObjectURL(el.imageUrl);
             handleUpdateElement(elementId, { imageUrl: url, width: Math.round(w), height: Math.round(h) });
             setCropModeElementId(null);
-            toast.success("Görsel kırpıldı.");
+            toast.success("Image cropped.");
             resolve(url);
           },
           "image/png",
@@ -1436,8 +1404,8 @@ export function ProductDesigner() {
                 className="h-9 w-9 rounded-lg"
                 disabled={!canUndo}
                 onClick={() => undo()}
-                title="Geri al"
-                aria-label="Geri al"
+      title={t("designer.undo")}
+      aria-label={t("designer.undo")}
               >
                 <Undo2 className="h-4 w-4" />
               </Button>
@@ -1447,8 +1415,8 @@ export function ProductDesigner() {
                 className="h-9 w-9 rounded-lg"
                 disabled={!canRedo}
                 onClick={() => redo()}
-                title="İleri al"
-                aria-label="İleri al"
+      title={t("designer.redo")}
+      aria-label={t("designer.redo")}
               >
                 <Redo2 className="h-4 w-4" />
               </Button>
@@ -1457,8 +1425,8 @@ export function ProductDesigner() {
                 size="icon"
                 className="h-9 w-9 rounded-lg"
                 onClick={() => setShowGrid((v) => !v)}
-                title="Izgara"
-                aria-label="Izgara"
+      title={t("designer.grid")}
+      aria-label={t("designer.grid")}
               >
                 <Grid3X3 className="h-4 w-4" />
               </Button>
@@ -1479,8 +1447,8 @@ export function ProductDesigner() {
                     setFitToPrintArea(true);
                   }
                 }}
-                title={fitToPrintArea ? "Önceki görünüme dön" : "Baskı alanını alana sığdır"}
-                aria-label={fitToPrintArea ? "Önceki görünüme dön" : "Baskı alanını alana sığdır"}
+                title={fitToPrintArea ? t("designer.restoreView") : t("designer.fitPrintArea")}
+                aria-label={fitToPrintArea ? t("designer.restoreView") : t("designer.fitPrintArea")}
               >
                 <Maximize2 className="h-4 w-4" />
               </Button>
@@ -1490,8 +1458,8 @@ export function ProductDesigner() {
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 rounded-lg"
-                    title="Yakınlaştır"
-                    aria-label="Yakınlaştır"
+                    title={t("designer.zoom")}
+                    aria-label={t("designer.zoom")}
                   >
                     <ZoomIn className="h-4 w-4" />
                   </Button>
@@ -1499,7 +1467,7 @@ export function ProductDesigner() {
                 <PopoverContent className="w-56 p-4" align="end" side="bottom">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Yakınlaştır</span>
+                      <span className="text-muted-foreground">{t("designer.zoom")}</span>
                       <span className="tabular-nums font-medium">{zoom}%</span>
                     </div>
                     <Slider
@@ -1523,37 +1491,29 @@ export function ProductDesigner() {
                     variant="outline"
                     size="sm"
                     className="rounded-lg h-9"
-                    disabled={requiresColorSelection}
-                    title={requiresColorSelection ? "Renk seçmeden export yapılamaz" : "Export"}
+                    disabled={requiresColorSelection || isBrandPageDesigner}
+                    title={
+                      isBrandPageDesigner
+                        ? t("designer.exportBlockedBrand")
+                        : requiresColorSelection
+                          ? t("designer.selectColorAfterMockup")
+                          : t("designer.export")
+                    }
                   >
                     <Download className="w-4 h-4" />
-                    Export
+                    {t("designer.export")}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-popover border border-border shadow-md z-50">
-                  <DropdownMenuItem disabled={requiresColorSelection} onClick={() => handleExport("original")}>
+                  <DropdownMenuItem
+                    disabled={requiresColorSelection || isBrandPageDesigner}
+                    onClick={() => handleExport("original")}
+                  >
                     <FileImage className="w-4 h-4 mr-2" />
-                    Export Original (High-Res)
+                    {t("designer.exportOriginal")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-lg h-9"
-                disabled={requiresColorSelection}
-                title={requiresColorSelection ? "Renk seçmeden kaydedemezsiniz" : "Save"}
-                onClick={() => {
-                  if (requiresColorSelection) {
-                    toast.error("Mockup oluştuktan sonra devam etmek için renk seçmelisiniz");
-                    return;
-                  }
-                  setSaveDialogOpen(true);
-                }}
-              >
-                <Save className="w-4 h-4" />
-                Save
-              </Button>
               {showCartAction && (
                 <>
                   <Button
@@ -1561,11 +1521,11 @@ export function ProductDesigner() {
                     variant="default"
                     className="rounded-lg h-9"
                     disabled={!currentProductId}
-                    title={!currentProductId ? "Önce bir ürün seçin" : "Tasarımı sepete ekle"}
+                    title={!currentProductId ? t("designer.selectProductFirst") : t("designer.addToCart")}
                     onClick={() => handleAddToCartFromDesigner()}
                   >
                     <ShoppingCart className="w-4 h-4" />
-                    Sepete ekle
+                    {t("designer.addToCart")}
                   </Button>
                   <div className="w-px h-7 bg-border ml-1" />
                 </>
@@ -1595,7 +1555,7 @@ export function ProductDesigner() {
               setElements([]);
               setDesignsByView((prev) => (currentViewId ? { ...prev, [currentViewId]: [] } : prev));
               handleSelectionChange([], null);
-              toast.success("Görsel silindi");
+              toast.success(t("designer.removeImageSuccess"));
             }}
             views={productViews.map((v) => ({ id: v.id, view_name: v.view_name }))}
             activeViewId={currentViewId}
@@ -1616,10 +1576,10 @@ export function ProductDesigner() {
                 );
 
                 if (results.some((r) => r.error)) throw new Error("order_update_failed");
-                toast.success("Görünüm sırası güncellendi");
+                toast.success(t("designer.viewOrderUpdated"));
               } catch {
                 setProductViews(prev);
-                toast.error("Görünüm sırası güncellenemedi");
+                toast.error(t("designer.viewOrderUpdateFailed"));
               }
             }}
             onAddView={async (viewName) => {
@@ -1641,12 +1601,12 @@ export function ProductDesigner() {
                 .single();
 
               if (error) {
-                toast.error("Görünüm eklenemedi");
+                toast.error(t("designer.viewAddFailed"));
                 return;
               }
 
               setProductViews((prev) => [...prev, data as ProductView]);
-              toast.success("Görünüm eklendi");
+              toast.success(t("designer.viewAdded"));
             }}
             onUpdateViewName={async (viewId, newName) => {
               const { error } = await supabase
@@ -1655,18 +1615,18 @@ export function ProductDesigner() {
                 .eq("id", viewId);
 
               if (error) {
-                toast.error("Görünüm güncellenemedi");
+                toast.error(t("designer.viewUpdateFailed"));
                 return;
               }
 
               setProductViews((prev) =>
                 prev.map((v) => (v.id === viewId ? { ...v, view_name: newName } : v))
               );
-              toast.success("Görünüm güncellendi");
+              toast.success(t("designer.viewUpdated"));
             }}
             onDeleteView={async (viewId) => {
               if (productViews.length <= 1) {
-                toast.error("En az 1 görünüm kalmalı");
+                toast.error(t("designer.viewDeleteMin"));
                 return;
               }
 
@@ -1676,7 +1636,7 @@ export function ProductDesigner() {
                 .eq("id", viewId);
 
               if (error) {
-                toast.error("Görünüm silinemedi");
+                toast.error(t("designer.viewDeleteFailed"));
                 return;
               }
 
@@ -1685,7 +1645,7 @@ export function ProductDesigner() {
                 const nextView = productViews.find((v) => v.id !== viewId);
                 if (nextView) setCurrentViewId(nextView.id);
               }
-              toast.success("Görünüm silindi");
+              toast.success(t("designer.viewDeleted"));
             }}
             onPickFileForView={(viewId, file) => {
               const previewUrl = URL.createObjectURL(file);
@@ -1726,7 +1686,7 @@ export function ProductDesigner() {
                   .upload(filePath, pending.file, { upsert: true });
 
                 if (uploadError) {
-                  toast.error("Mockup kaydedilemedi");
+                  toast.error(t("designer.mockupSaveFailed"));
                   return;
                 }
 
@@ -1756,7 +1716,7 @@ export function ProductDesigner() {
                   .eq("id", currentViewId);
 
                 if (dbError) {
-                  toast.error("Mockup kaydedilemedi");
+                  toast.error(t("designer.mockupSaveFailed"));
                   return;
                 }
 
@@ -1786,7 +1746,7 @@ export function ProductDesigner() {
 
                 setMockupSaveProgress(100);
                 setMockupSaveStatus("Kaydedildi");
-                toast.success("Mockup kaydedildi");
+                toast.success(t("designer.mockupSaved"));
               } finally {
                 // Keep the "Kaydedildi" state briefly, then reset.
                 window.setTimeout(() => {
@@ -1812,7 +1772,7 @@ export function ProductDesigner() {
                 delete next[currentViewId];
                 return next;
               });
-              toast.message("Mockup değişikliği iptal edildi");
+              toast.message(t("designer.mockupCancel"));
             }}
             onRemoveMockup={async () => {
               if (!currentViewId) return;
@@ -1827,7 +1787,7 @@ export function ProductDesigner() {
                   .eq("id", currentViewId);
 
                 if (error) {
-                  toast.error("Mockup kaldırılamadı");
+                  toast.error(t("designer.mockupRemoveFailed"));
                   return;
                 }
 
@@ -1843,7 +1803,7 @@ export function ProductDesigner() {
                   });
                   return next;
                 });
-                toast.success("Mockup kaldırıldı");
+                toast.success(t("designer.mockupRemoved"));
               } finally {
                 setIsSavingMockup(false);
               }
@@ -1882,7 +1842,7 @@ export function ProductDesigner() {
             }}
             onResetPrintArea={async () => {
               if (!currentViewId) return;
-              if (!window.confirm("Bu görünümün baskı alanı kaldırılacak. Baskı alanı oluşturucu ile yeniden oluşturabilirsiniz. Devam edilsin mi?")) return;
+              if (!window.confirm(t("designer.printAreaResetConfirm"))) return;
               const payload = {
                 design_area_top: 0,
                 design_area_left: 0,
@@ -1891,7 +1851,7 @@ export function ProductDesigner() {
               };
               const { error } = await supabase.from("product_views").update(payload).eq("id", currentViewId);
               if (error) {
-                toast.error("Baskı alanı sıfırlanamadı");
+                toast.error(t("designer.printAreaResetFailed"));
                 return;
               }
               setProductViews((prev) => prev.map((v) => (v.id === currentViewId ? { ...v, ...payload } : v)));
@@ -1906,14 +1866,14 @@ export function ProductDesigner() {
               const nextByView = { ...byView };
               delete nextByView[currentViewId];
               await supabase.from("product_attributes").upsert({ product_id: currentProductId, data: { ...attrs, print_area_dimensions_by_view: nextByView } }, { onConflict: "product_id" });
-              toast.success("Baskı alanı silindi. Baskı alanı oluşturucu ile yeniden oluşturabilirsiniz.");
+              toast.success(t("designer.printAreaResetSuccess"));
             }}
             showGrid={showGrid}
             zoom={zoom}
             captureMode={captureMode}
             onSavePrintArea={async (area) => {
               if (!currentViewId) {
-                toast.error("Baskı alanı için önce bir görünüm seçin veya ekleyin.");
+                toast.error(t("designer.printAreaSaveNeedView"));
                 return;
               }
 
@@ -1926,14 +1886,14 @@ export function ProductDesigner() {
 
               const { error } = await supabase.from("product_views").update(payload).eq("id", currentViewId);
               if (error) {
-                toast.error("Baskı alanı kaydedilemedi");
+                toast.error(t("designer.printAreaSaveFailed"));
                 return;
               }
 
               setProductViews((prev) =>
                 prev.map((v) => (v.id === currentViewId ? { ...v, ...payload } : v)),
               );
-              toast.success("Baskı alanı kaydedildi");
+              toast.success(t("designer.printAreaSaved"));
             }}
           />
             </div>
@@ -1941,47 +1901,19 @@ export function ProductDesigner() {
         </div>
       </div>
 
-      {/* Save Dialog */}
-      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Save Design</DialogTitle>
-            <DialogDescription>
-              Enter a name for your design. Your design will be saved to your account.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="design-name">Design Name</Label>
-            <Input
-              id="design-name"
-              value={designName}
-              onChange={(e) => setDesignName(e.target.value)}
-              placeholder="My Awesome Design"
-              className="mt-2"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveDesign}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Baskı alanı oluşturucu: görünüm için en × boy (cm) girerek baskı alanı oluştur */}
       <Dialog open={printAreaCreatorOpen} onOpenChange={setPrintAreaCreatorOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Baskı alanı oluşturucu</DialogTitle>
+            <DialogTitle>{t("designer.printAreaCreatorTitle")}</DialogTitle>
             <DialogDescription>
-              Bu görünüm için baskı ebatını girin (en × boy). Örn. 8,5 × 20 cm. Oranına göre baskı alanı oluşturulur.
+              {t("designer.printAreaCreatorDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="print-area-width-cm">En (cm)</Label>
+                <Label htmlFor="print-area-width-cm">{t("designer.printAreaWidth")}</Label>
                 <Input
                   id="print-area-width-cm"
                   type="text"
@@ -1992,7 +1924,7 @@ export function ProductDesigner() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="print-area-height-cm">Boy (cm)</Label>
+                <Label htmlFor="print-area-height-cm">{t("designer.printAreaHeight")}</Label>
                 <Input
                   id="print-area-height-cm"
                   type="text"
@@ -2006,7 +1938,7 @@ export function ProductDesigner() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPrintAreaCreatorOpen(false)}>
-              İptal
+              {t("common.cancel")}
             </Button>
             <Button
               disabled={isSavingPrintArea || !printAreaWidthCm.trim() || !printAreaHeightCm.trim()}
@@ -2014,7 +1946,7 @@ export function ProductDesigner() {
                 const w = parseFloat(printAreaWidthCm.replace(",", "."));
                 const h = parseFloat(printAreaHeightCm.replace(",", "."));
                 if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
-                  toast.error("Geçerli en ve boy girin (örn. 8,5 ve 20)");
+                  toast.error(t("designer.invalidPrintAreaSize"));
                   return;
                 }
                 if (!currentViewId) return;
@@ -2032,7 +1964,7 @@ export function ProductDesigner() {
                 };
                 const { error } = await supabase.from("product_views").update(payload).eq("id", currentViewId);
                 if (error) {
-                  toast.error("Baskı alanı kaydedilemedi");
+                  toast.error(t("designer.printAreaSaveFailed"));
                   setIsSavingPrintArea(false);
                   return;
                 }
@@ -2059,10 +1991,10 @@ export function ProductDesigner() {
                 setPrintAreaHeightCm("");
                 setIsSavingPrintArea(false);
                 setTriggerPrintAreaEdit(Date.now());
-                toast.success(`Baskı alanı oluşturuldu (${w} × ${h} cm). Taşımak için sürükleyin.`);
+                toast.success(t("designer.printAreaCreated", { w, h }));
               }}
             >
-              Uygula
+              {t("common.apply")}
             </Button>
           </DialogFooter>
         </DialogContent>
