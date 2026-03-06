@@ -9,7 +9,7 @@ import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { LOCALES, type Locale } from "@/lib/i18n/locales";
 
 const TOP_NAV = [
-  { label: "Catalog", to: "/catalog/all" },
+  { label: "Catalog", to: "/catalog" },
   { label: "Solutions", to: "#" },
   { label: "Academy", to: "#" },
   { label: "Blog", to: "#" },
@@ -106,7 +106,7 @@ export function TopMenu() {
             </>
           ) : (
             <Button asChild>
-              <Link to="/catalog/all">{t("nav.catalog")}</Link>
+              <Link to="/catalog">{t("nav.catalog")}</Link>
             </Button>
           )}
         </div>

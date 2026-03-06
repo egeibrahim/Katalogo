@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -14,16 +14,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { getPlanDisplayName } from "@/lib/planFeatures";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
-import { LOCALES, type Locale } from "@/lib/i18n/locales";
 
 const TITLES: Array<{ prefix: string; title: string; subtitle: string }> = [
+  { prefix: "/brand/products", title: "brand.topbarProducts", subtitle: "" },
   { prefix: "/brand/catalogs", title: "brand.topbarCatalogs", subtitle: "brand.topbarCatalogsSubtitle" },
+  { prefix: "/brand/profile", title: "brand.topbarProfile", subtitle: "brand.topbarProfileSubtitle" },
+  { prefix: "/brand/catalog", title: "brand.topbarCatalog", subtitle: "brand.topbarCatalogSubtitle" },
 ];
 
 export function BusinessTopbar() {
@@ -31,15 +32,7 @@ export function BusinessTopbar() {
   const navigate = useNavigate();
   const { session, signOut } = useAuth();
   const { data: membership } = useUserMembership(session?.user?.id ?? null);
-  const [scrolled, setScrolled] = useState(false);
-  const { t, locale, setLocale } = useI18n();
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 16);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const { t } = useI18n();
 
   const meta = useMemo(() => {
     const hit = TITLES.find((t) => location.pathname.startsWith(t.prefix));
@@ -50,8 +43,8 @@ export function BusinessTopbar() {
   const initials = (email || "U").slice(0, 2).toUpperCase();
 
   return (
-    <header className={`sticky top-0 z-40 border-b topbar-landing-standard ${scrolled ? "topbar-landing-standard--scrolled" : ""}`}>
-      <div className="flex h-14 items-center gap-3 px-4">
+    <header className="business-topbar sticky top-0 z-40 border-b bg-background">
+      <div className="flex min-h-14 items-center gap-3 px-4 py-2">
         <SidebarTrigger />
         <Separator orientation="vertical" className="h-6" />
 
@@ -61,20 +54,6 @@ export function BusinessTopbar() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <div className="hidden md:inline-flex items-center">
-            <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
-              <SelectTrigger className="h-9 w-[84px] bg-transparent">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {LOCALES.map((it) => (
-                  <SelectItem key={it.value} value={it.value}>
-                    {it.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 gap-2">

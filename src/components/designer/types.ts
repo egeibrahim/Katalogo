@@ -129,6 +129,6 @@ export interface DesignState {
   productId: string;
 }
 
-export type ActiveTab = "upload" | "text" | "layers";
+export type ActiveTab = "upload" | "text" | "layers" | "mockup";
 
 export type ActiveTool = "select" | "text" | "upload";

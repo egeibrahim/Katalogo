@@ -16,6 +16,7 @@ import {
   usePublicProductSizes,
   usePublicProductViews,
   usePublicUnitPriceTiers,
+  usePublicViewColorMockupsByViews,
   usePublicViewColorMockup,
 } from "@/hooks/usePublicProduct";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -26,6 +27,8 @@ import { canUseCart } from "@/lib/planFeatures";
 import { toast } from "sonner";
 import { getSignedImageUrl } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { getProductPath } from "@/lib/productUrls";
+import { normalizeCurrency } from "@/lib/currency";
 
 function formatSizeRange(sizes: string[]) {
   if (sizes.length === 0) return null;
@@ -206,6 +209,9 @@ export default function ProductPage() {
     return (byName ?? list[0]).id;
   }, [selectedView, views]);
 
+  const viewIds = useMemo(() => (views ?? []).map((v) => v.id).filter(Boolean), [views]);
+  const { data: colorMockupsForColor } = usePublicViewColorMockupsByViews(viewIds, selectedColorId);
+
   const { data: colorMockupUrl } = usePublicViewColorMockup(activeViewId, selectedColorId);
 
   const viewFallbackUrl = useMemo(() => {
@@ -267,16 +273,28 @@ export default function ProductPage() {
   }, [attrs]);
 
   /** Teknik bazlı baskı alanı fiyatları; ProductConfigurator seçilen tekniğe göre fiyatı kendisi seçer. */
-  const printAreaViews = useMemo((): Array<{ name: string; price?: string; pricesByTechnique?: Record<string, string> }> | null => {
-    const raw = (attrs as any).print_area_views;
-    if (!Array.isArray(raw) || raw.length === 0) return null;
-    const list = raw.slice(0, 10).map((x: any) => ({
-      name: typeof x?.name === "string" ? x.name.trim() : "",
-      price: typeof x?.price === "string" ? x.price.trim() : x?.price != null ? String(x.price).trim() : "",
-      pricesByTechnique: x?.pricesByTechnique && typeof x.pricesByTechnique === "object" ? x.pricesByTechnique : undefined,
-    }));
-    return list.some((p) => p.name) ? list : null;
-  }, [attrs]);
+  const printAreaViews = useMemo(
+    (): Array<{ name: string; price?: string; pricesByTechnique?: Record<string, string> }> | null => {
+      const raw = (attrs as any).print_area_views;
+      if (!Array.isArray(raw) || raw.length === 0) return null;
+
+      const mapped = raw.slice(0, 10).map((x: any) => ({
+        name: typeof x?.name === "string" ? x.name.trim() : "",
+        price: typeof x?.price === "string" ? x.price.trim() : x?.price != null ? String(x.price).trim() : "",
+        pricesByTechnique: x?.pricesByTechnique && typeof x.pricesByTechnique === "object" ? x.pricesByTechnique : undefined,
+        color_ids: Array.isArray(x?.color_ids) ? x.color_ids.filter((id: unknown) => typeof id === "string") : [],
+      }));
+
+      const hasAnyColorRestriction = mapped.some((p) => (p.color_ids?.length ?? 0) > 0);
+      const filtered = hasAnyColorRestriction && selectedColorId
+        ? mapped.filter((p) => (p.color_ids?.length ?? 0) === 0 || p.color_ids.includes(selectedColorId))
+        : mapped;
+
+      const list = filtered.map(({ color_ids: _colorIds, ...rest }) => rest);
+      return list.some((p) => p.name) ? list : null;
+    },
+    [attrs, selectedColorId]
+  );
 
   /** Teknik yokken veya geri uyumluluk için: düz baskı alanı listesi (tek fiyat). */
   const placementOptions = useMemo((): Array<{ name: string; price: string }> | null => {
@@ -293,13 +311,31 @@ export default function ProductPage() {
   /** Galeri strip: product_gallery_images (tekiller); video varsa 3. sırada eklenir. */
   const mergedGalleryImages = useMemo(() => {
     const seen = new Set<string>();
-    return galleryImages.filter((x) => {
-      if (!x.src) return false;
-      if (seen.has(x.src)) return false;
+    const out: Array<{ src: string; alt: string }> = [];
+
+    const colorImgs = (colorMockupsForColor ?? [])
+      .map((m) => ({
+        src: m.mockup_image_url ?? "",
+        alt: `${product?.name ?? "Product"} mockup`,
+      }))
+      .filter((x) => Boolean(x.src));
+
+    for (const x of colorImgs) {
+      if (!x.src) continue;
+      if (seen.has(x.src)) continue;
       seen.add(x.src);
-      return true;
-    });
-  }, [galleryImages]);
+      out.push(x);
+    }
+
+    for (const x of galleryImages) {
+      if (!x.src) continue;
+      if (seen.has(x.src)) continue;
+      seen.add(x.src);
+      out.push(x);
+    }
+
+    return out;
+  }, [galleryImages, colorMockupsForColor, product?.name]);
 
   const videoUrl = useMemo(() => {
     const v = (attrs as any)?.video_url;
@@ -343,7 +379,11 @@ export default function ProductPage() {
   const handleAddToCart = (
     placementFeePerItem?: number,
     unitPriceFromTier?: number,
-    details?: { selectedTechnique?: string; selectedPlacements?: Array<{ name: string; price: string }> }
+    details?: {
+      selectedTechnique?: string;
+      selectedPlacements?: Array<{ name: string; price: string }>;
+      currency?: string;
+    }
   ) => {
     if (!productId || !product) return;
     const qtyToAdd =
@@ -368,6 +408,7 @@ export default function ProductPage() {
         slug: product.slug ?? null,
         name: product.name,
         price_from: priceFrom,
+        currency: normalizeCurrency(details?.currency ?? ((product as any).currency as string | null)),
         product_code: (product as any).product_code ?? null,
         cover_image_url: product.cover_image_url ?? product.thumbnail_url ?? null,
         selectedSize: selectedSize ?? undefined,
@@ -386,7 +427,7 @@ export default function ProductPage() {
     return (
       <NewcatalogChrome activeCategory="All">
         <div className="ru-max">
-          <section className="ts-container pt-5" aria-label="Product loading">
+          <section className="ts-container pt-5" aria-label={t("product.loading")}>
             <h1 className="ru-h1">{t("product.loading")}</h1>
           </section>
         </div>
@@ -398,10 +439,10 @@ export default function ProductPage() {
     return (
       <NewcatalogChrome activeCategory="All">
         <div className="ru-max">
-          <section className="ts-container pt-5" aria-label="Product not found">
+          <section className="ts-container pt-5" aria-label={t("product.notFound")}>
             <h1 className="ru-h1">{t("product.notFound")}</h1>
             <div className="mt-4">
-              <Link to="/catalog/all" className="ru-pill">
+              <Link to="/catalog" className="ru-pill">
                 {t("common.backToCatalog")}
               </Link>
             </div>
@@ -414,14 +455,14 @@ export default function ProductPage() {
   return (
     <NewcatalogChrome activeCategory="All">
       <div className="ru-max ru-product-page">
-        <section className="ts-container pt-5" aria-label="Product header">
-          <nav className="ru-breadcrumb" aria-label="Breadcrumb">
-            <Link to="/catalog/all" className="ru-breadcrumb-link">
+        <section className="ts-container pt-5" aria-label={t("product.headerAria")}>
+          <nav className="ru-breadcrumb" aria-label={t("catalog.breadcrumb")}>
+            <Link to="/catalog" className="ru-breadcrumb-link">
               {t("product.all")}
             </Link>
             <span className="ru-breadcrumb-sep">/</span>
             {category ? (
-              <Link to={`/collection/${category.slug}`} className="ru-breadcrumb-link">
+              <Link to={`/catalog/${category.slug}`} className="ru-breadcrumb-link">
                 {category.name}
               </Link>
             ) : (
@@ -436,7 +477,7 @@ export default function ProductPage() {
           <div className="ru-header-row">
             <div>
               <h1 className="ru-h1">{product.name}</h1>
-              <div className="ru-meta-row" aria-label="Product meta">
+              <div className="ru-meta-row" aria-label={t("product.metaAria")}>
                 {product.product_code ? (
                   <>
                     <span className="ru-meta-strong">{product.product_code}</span>
@@ -465,20 +506,20 @@ export default function ProductPage() {
               </div>
             </div>
 
-            <div className="ru-header-actions" aria-label="Primary actions">
+            <div className="ru-header-actions" aria-label={t("product.primaryActionsAria")}>
               <button className="ru-btn-primary" type="button" onClick={handleDesignNow}>
                 {t("common.designNow")}
               </button>
             </div>
           </div>
 
-          <div className="ru-header-actions-mobile" aria-label="Primary actions">
+          <div className="ru-header-actions-mobile" aria-label={t("product.primaryActionsAria")}>
             <button className="ru-btn-primary" type="button" onClick={handleDesignNow}>
               {t("common.designNow")}
             </button>
           </div>
 
-          <div className="ru-controls" aria-label="Product controls">
+          <div className="ru-controls" aria-label={t("product.controlsAria")}>
             <div className="ru-color-dropdown" ref={colorWrapRef}>
               <button
                 type="button"
@@ -504,7 +545,7 @@ export default function ProductPage() {
                         type="button"
                         className={selectedColorId === c.id ? "ru-color-swatch ru-color-swatch--active" : "ru-color-swatch"}
                         style={{ backgroundColor: c.hex_code || "transparent" }}
-                        aria-label={`Color ${c.name}`}
+                        aria-label={`${t("product.color")} ${c.name}`}
                         aria-pressed={selectedColorId === c.id}
                         onClick={() => {
                           setSelectedColorId(c.id);
@@ -521,7 +562,7 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <section className="ru-max" aria-label="Product gallery">
+        <section className="ru-max" aria-label={t("product.galleryAria")}>
           <div className="ru-gallery-wrapper">
             <button
               type="button"
@@ -534,7 +575,7 @@ export default function ProductPage() {
             >
               <ChevronLeft className="h-6 w-6" />
             </button>
-            <div ref={galleryStripRef} className="ru-gallery-strip" aria-label="Gallery strip">
+            <div ref={galleryStripRef} className="ru-gallery-strip" aria-label={t("product.galleryStripAria")}>
               {galleryStripItems.map((item, index) =>
                 item.type === "video" ? (
                   <div key="product-video" className="ru-gallery-item">
@@ -572,7 +613,7 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <section className="ts-container ru-section" aria-label="Product details">
+        <section className="ts-container ru-section" aria-label={t("product.details.aria")}>
           <ProductDetailsAccordion
             productId={product.id}
             noteHtml={product.description}
@@ -597,6 +638,7 @@ export default function ProductPage() {
             techniques={techniques}
             designNowViewId={activeViewId}
             designerBrandSlug={designerBrandSlug}
+            primaryCta={(attrs as any).primary_cta === "request_quote" ? "request_quote" : "design_now"}
             selectedColorId={selectedColorId}
             onSelectedColorIdChange={setSelectedColorId}
             selectedSize={selectedSize}
@@ -604,6 +646,7 @@ export default function ProductPage() {
             quantity={addToCartQty}
             onQuantityChange={setAddToCartQty}
             onAddToCart={showCart ? handleAddToCart : undefined}
+            productCurrency={normalizeCurrency((product as any).currency)}
             addToCartRef={configuratorAddToCartRef}
             maxQuantity={remainingStock}
             unitPriceTiers={(unitPriceTiers ?? []).map((t) => ({

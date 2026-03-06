@@ -16,6 +16,8 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { ChevronDown, Info } from "lucide-react";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { getProductPath } from "@/lib/productUrls";
+import { formatMoney, normalizeCurrency } from "@/lib/currency";
 
 function CartItemImage({ src }: { src: string | null | undefined }) {
   const [displaySrc, setDisplaySrc] = useState<string | null>(src ?? null);
@@ -51,9 +53,9 @@ function CartItemImage({ src }: { src: string | null | undefined }) {
   );
 }
 
-function formatPrice(price: number | null) {
+function formatPrice(price: number | null, currency?: string | null) {
   if (price == null) return "—";
-  return `$${Number(price).toFixed(2)}`;
+  return formatMoney(Number(price), currency);
 }
 
 function cartItemMaxQuantity(attrs: Record<string, unknown> | undefined): number | null {
@@ -121,7 +123,11 @@ function CartItemRow({
     updateQuantity(item.id, capped);
   };
 
-  const productUrl = item.slug ? `/product/${item.slug}` : `/product/id/${item.productId}`;
+  const productUrl = getProductPath({
+    slug: item.slug,
+    productCode: item.product_code,
+    id: item.productId,
+  });
   const designerUrl = `/designer?productId=${item.productId}${item.selectedColorName ? `&colorId=${item.selectedColorName}` : ""}`;
 
   return (
@@ -245,7 +251,7 @@ function CartItemRow({
       </div>
       <div className="ru-cart-item-right">
         <span className="ru-cart-item-price">
-          {formatPrice(lineTotal)}
+          {formatPrice(lineTotal, item.currency)}
         </span>
         <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden />
       </div>
@@ -307,7 +313,7 @@ export default function CartPage() {
           {items.length === 0 ? (
             <div className="mt-6 rounded-lg border border-dashed p-8 text-center text-muted-foreground">
               <p className="mb-4">{t("cart.empty")}</p>
-              <Link to="/catalog/all" className="ru-pill">
+              <Link to="/catalog" className="ru-pill">
                 {t("cart.goCatalog")}
               </Link>
             </div>
@@ -331,7 +337,7 @@ export default function CartPage() {
                   >
                     {t("common.remove")}
                   </button>
-                  <Link to="/catalog/all" className="ru-cart-action-link">
+                  <Link to="/catalog" className="ru-cart-action-link">
                     {t("cart.actions.branding")}
                   </Link>
                   <button
@@ -367,7 +373,7 @@ export default function CartPage() {
                 <h2 className="ru-cart-summary-title">{t("cart.summary.title")}</h2>
                 <div className="ru-cart-summary-row muted">
                   <span>{t("cart.summary.productItems", { count: totalCount })}</span>
-                  <span>{formatPrice(productSubtotal)}</span>
+                  <span>{formatPrice(productSubtotal, items[0]?.currency)}</span>
                 </div>
                 <div className="ru-cart-summary-row muted">
                   <span>{t("cart.summary.customization")}</span>
@@ -443,9 +449,11 @@ function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () =
         quantityBySize: i.quantityBySize ?? undefined,
         unitPrice: (i.price_from ?? 0) + (i.placementFeePerItem ?? 0),
         lineTotal: lineTotal(i),
+        currency: normalizeCurrency(i.currency),
         hasDesign: Boolean(i.designData && Object.keys(i.designData).length > 0),
         designName: i.designName ?? undefined,
         designData: i.designData ?? undefined,
+        mockupUrls: i.mockupUrls ?? undefined,
       })),
       companyName,
       contactName,
@@ -454,6 +462,19 @@ function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () =
       address,
       notes,
     };
+    
+    let brandUserId: string | null = null;
+    if (items.length > 0 && items[0].productId) {
+      const { data: pData } = await supabase
+        .from("products")
+        .select("owner_user_id")
+        .eq("id", items[0].productId)
+        .maybeSingle();
+      if (pData?.owner_user_id) {
+        brandUserId = pData.owner_user_id;
+      }
+    }
+
     const { error } = await supabase.from("quote_requests").insert({
       company_name: payload.companyName || null,
       contact_name: payload.contactName || null,
@@ -462,6 +483,7 @@ function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () =
       address: payload.address || null,
       notes: payload.notes || null,
       items: payload.items,
+      brand_user_id: brandUserId,
     });
     if (error) {
       setSubmitting(false);
@@ -542,12 +564,12 @@ function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () =
                   <div>
                     <dt className="text-muted-foreground">{t("cart.quote.unitPrice")}</dt>
                     <dd className="font-medium">
-                      {formatPrice((item.price_from ?? 0) + (item.placementFeePerItem ?? 0))}
+                      {formatPrice((item.price_from ?? 0) + (item.placementFeePerItem ?? 0), item.currency)}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">{t("cart.quote.lineTotal")}</dt>
-                    <dd className="font-semibold text-foreground">{formatPrice(lineTotal(item))}</dd>
+                    <dd className="font-semibold text-foreground">{formatPrice(lineTotal(item), item.currency)}</dd>
                   </div>
                 </dl>
               </div>
@@ -557,7 +579,7 @@ function QuoteFormSection({ items, onClose }: { items: CartItem[]; onClose: () =
 
         <div className="mt-6 flex justify-end border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">
-            {t("cart.quote.grandTotal")}: <span className="text-lg font-semibold text-foreground">{formatPrice(grandTotal)}</span>
+            {t("cart.quote.grandTotal")}: <span className="text-lg font-semibold text-foreground">{formatPrice(grandTotal, items[0]?.currency)}</span>
           </p>
         </div>
       </div>

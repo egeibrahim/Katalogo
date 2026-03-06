@@ -33,6 +33,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { arrayMove, buildSortOrderUpdates } from "@/lib/sort-order";
+import { getProductPath } from "@/lib/productUrls";
+import { formatMoney, normalizeCurrency } from "@/lib/currency";
 import { GripVertical, Pencil, Plus, Trash2, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,10 +42,12 @@ type ProductRow = {
   id: string;
   name: string;
   slug: string | null;
+  product_code: string | null;
   cover_image_url: string | null;
   thumbnail_url: string | null;
   sort_order: number;
   price_from: number | null;
+  currency: string | null;
   is_active: boolean | null;
   created_at: string;
   categories?: { name: string } | null;
@@ -96,7 +100,7 @@ export default function AdminProducts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id,name,slug,cover_image_url,thumbnail_url,sort_order,price_from,is_active,created_at,categories(name)")
+        .select("id,name,slug,cover_image_url,thumbnail_url,sort_order,price_from,currency,is_active,created_at,categories(name)")
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return (data ?? []) as ProductRow[];
@@ -173,6 +177,7 @@ export default function AdminProducts() {
         slug: null,
         category_id: (source as any).category_id ?? null,
         price_from: (source as any).price_from ?? null,
+        currency: (source as any).currency ?? "USD",
         is_active: false,
         sort_order: maxOrder + 1,
         product_code: (source as any).product_code ?? null,
@@ -340,9 +345,9 @@ export default function AdminProducts() {
         </div>
       </TableCell>
       <TableCell>{p.categories?.name ?? "—"}</TableCell>
-      <TableCell>{p.price_from != null ? `$${p.price_from}` : "—"}</TableCell>
+      <TableCell>{p.price_from != null ? formatMoney(Number(p.price_from), normalizeCurrency(p.currency)) : "—"}</TableCell>
       <TableCell>
-        <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? "Published" : "Draft"}</Badge>
+        <Badge variant={p.is_active ? "success" : "secondary"}>{p.is_active ? "Published" : "Draft"}</Badge>
         <Switch
           checked={Boolean(p.is_active)}
           onCheckedChange={(checked) => toggleStatusMutation.mutate({ id: p.id, is_active: checked })}
@@ -354,7 +359,7 @@ export default function AdminProducts() {
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">
           <Button variant="outline" size="icon" asChild title="Open in store">
-            <a href={p.slug ? `/product/${p.slug}` : `/product/id/${p.id}`} target="_blank" rel="noopener noreferrer">
+            <a href={getProductPath({ slug: p.slug, productCode: p.product_code, id: p.id })} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-4 w-4" />
             </a>
           </Button>

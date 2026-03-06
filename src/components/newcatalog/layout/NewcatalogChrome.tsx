@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CatalogFooter } from "@/components/newcatalog/layout/CatalogFooter";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { toPublicCategorySlug } from "@/lib/productUrls";
 
 type TopCategory = {
   id: string;
@@ -22,6 +24,7 @@ export function NewcatalogChrome({
   activeCategory?: string;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const { data: topCategories = [] } = useQuery({
     queryKey: ["public", "categories", "top"],
     queryFn: async () => {
@@ -39,18 +42,24 @@ export function NewcatalogChrome({
   });
 
   const navItems = useMemo(() => {
+    const categoryLabelBySlug = (slug: string, fallbackName: string) => {
+      const key = `catalog.category.${slug.toLowerCase()}`;
+      const translated = t(key);
+      return translated === key ? fallbackName : translated;
+    };
+
     // Keep "All" as a stable entry, then append backend-driven top categories
     // like "Apparel", "Accessories".
-    const base = [{ label: "All", slug: "all", to: "/collection/all" }];
+    const base = [{ label: t("catalog.allProductsShort"), slug: "all", to: "/catalog" }];
 
     // Show all top-level categories in the menu (even if products live only in subcategories).
     const dynamic = topCategories.map((c) => ({
-      label: c.name,
+      label: categoryLabelBySlug(c.slug, c.name),
       slug: c.slug,
-      to: `/collection/${c.slug}`,
+      to: `/${toPublicCategorySlug(c.slug)}`,
     }));
     return [...base, ...dynamic];
-  }, [topCategories]);
+  }, [topCategories, t]);
 
   const activeKey = (activeCategory ?? "").toLowerCase();
 
@@ -58,7 +67,7 @@ export function NewcatalogChrome({
     <main className="ts-clone min-h-dvh flex flex-col">
       {/* Top menu is rendered globally in AppLayout; keep only the category row here. */}
       <div className="ru-max px-6">
-        <nav className="ru-cats" aria-label="Categories">
+        <nav className="ru-cats" aria-label={t("catalog.categories")}>
           {navItems.map((item) => {
             const isActive =
               activeKey === item.slug.toLowerCase() || activeKey === item.label.toLowerCase();

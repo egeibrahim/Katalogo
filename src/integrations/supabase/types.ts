@@ -144,6 +144,8 @@ export type Database = {
       catalogs: {
         Row: {
           contact_email: string
+          contact_location: string | null
+          contact_phone: string | null
           cover_image_url: string | null
           created_at: string
           id: string
@@ -156,6 +158,8 @@ export type Database = {
         }
         Insert: {
           contact_email: string
+          contact_location?: string | null
+          contact_phone?: string | null
           cover_image_url?: string | null
           created_at?: string
           id?: string
@@ -168,6 +172,8 @@ export type Database = {
         }
         Update: {
           contact_email?: string
+          contact_location?: string | null
+          contact_phone?: string | null
           cover_image_url?: string | null
           created_at?: string
           id?: string
@@ -949,6 +955,7 @@ export type Database = {
           category_id: string | null
           cover_image_url: string | null
           created_at: string
+          currency: string
           description: string | null
           id: string
           is_active: boolean | null
@@ -973,6 +980,7 @@ export type Database = {
           category_id?: string | null
           cover_image_url?: string | null
           created_at?: string
+          currency?: string
           description?: string | null
           id?: string
           is_active?: boolean | null
@@ -997,6 +1005,7 @@ export type Database = {
           category_id?: string | null
           cover_image_url?: string | null
           created_at?: string
+          currency?: string
           description?: string | null
           id?: string
           is_active?: boolean | null

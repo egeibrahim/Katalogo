@@ -37,16 +37,14 @@ export function LandingNav() {
   const NAV: NavItem[] = [
     { label: t("nav.home"), to: "/" },
     { label: t("nav.about"), to: "/#aboutus" },
-    { label: t("nav.works"), to: "/#work" },
     { label: t("nav.pricing"), to: "/pricing" },
-    ...(user ? [{ label: t("nav.catalog"), to: "/catalog/all" }] : []),
-    { label: t("nav.brands"), to: "/brands" },
+    ...(user ? [{ label: t("nav.catalog"), to: "/catalog" }] : []),
     { label: t("nav.blog"), to: "/blog" },
   ];
 
   return (
     <div className="landing-page landing-page--nav-only">
-      <header className={`landing-header landing-header--sticky ${scrolled ? "landing-header--scrolled" : ""}`}>
+      <header className={`landing-header landing-header--sticky ${scrolled ? "landing-header--scrolled" : ""} ${mobileOpen ? "landing-header--menu-open" : ""}`}>
         <div className="landing-header-inner">
           <Link to="/" className="landing-logo" onClick={closeMobile} aria-label="Katalogo">
             <Logo asLink={false} />
@@ -108,7 +106,7 @@ export function LandingNav() {
                 </Link>
               </>
             )}
-            <div className="hidden md:inline-flex items-center">
+            <div className="inline-flex items-center">
               <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
                 <SelectTrigger className="h-9 w-[84px] bg-transparent">
                   <SelectValue />
@@ -124,7 +122,15 @@ export function LandingNav() {
             </div>
           </nav>
         </div>
-        {mobileOpen && <div className="landing-nav-overlay" onClick={closeMobile} aria-hidden />}
+        {mobileOpen && (
+              <div
+                className="landing-nav-overlay"
+                onClick={closeMobile}
+                role="button"
+                aria-label={t("nav.menuClose")}
+                aria-hidden
+              />
+            )}
       </header>
     </div>
   );

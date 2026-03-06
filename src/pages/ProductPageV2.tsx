@@ -180,11 +180,11 @@ export default function ProductPageV2() {
       <div className="ru-max">
         <section className="ts-container pt-8" aria-label="Product header">
           <nav className="ru-breadcrumb" aria-label="Breadcrumb">
-            <Link to="/catalog/all" className="ru-breadcrumb-link">
+            <Link to="/catalog" className="ru-breadcrumb-link">
               All
             </Link>
             <span className="ru-breadcrumb-sep">/</span>
-            <Link to="/collection/all" className="ru-breadcrumb-link">
+            <Link to="/catalog" className="ru-breadcrumb-link">
               T-Shirts
             </Link>
           </nav>

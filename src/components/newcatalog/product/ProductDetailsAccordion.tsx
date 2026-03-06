@@ -2,6 +2,7 @@ import * as React from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useProductDetails } from "@/hooks/useProductDetails";
 import { sanitizeRichHtml } from "@/lib/sanitizeHtml";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 type CanonicalSection = "details" | "features" | "care" | "fabric" | "other";
 
@@ -38,12 +39,35 @@ function joinEdits(arr: string[]): string {
 }
 
 /** Build accordion items from edits attrs + product code (so view shows what's in admin). */
-function buildItemsFromEdits(attrs: EditsAttrsForDetails | null | undefined, productCode: string | null | undefined): ProductDetailLike[] {
+type DetailLabels = {
+  productCode: string;
+  gender: string;
+  fit: string;
+  neckline: string;
+  sleeveStyle: string;
+  sleeveLength: string;
+  season: string;
+  style: string;
+  elements: string;
+  material: string;
+  fabricWeight: string;
+  thickness: string;
+  elasticity: string;
+  breathability: string;
+  featuresTitle: string;
+  careInstructionsTitle: string;
+};
+
+function buildItemsFromEdits(
+  attrs: EditsAttrsForDetails | null | undefined,
+  productCode: string | null | undefined,
+  labels: DetailLabels
+): ProductDetailLike[] {
   const a = attrs ?? {};
   const details: string[] = [];
-  if (productCode != null && String(productCode).trim()) details.push(`Product Code: ${String(productCode).trim()}`);
+  if (productCode != null && String(productCode).trim()) details.push(`${labels.productCode}: ${String(productCode).trim()}`);
   const gender = a.gender != null ? String(a.gender).trim() : "";
-  if (gender) details.push(`Gender: ${gender}`);
+  if (gender) details.push(`${labels.gender}: ${gender}`);
 
   const fit = joinEdits(arrFromEdits(a.fit as string | string[]));
   const neckline = joinEdits(arrFromEdits(a.neckline as string | string[]));
@@ -53,13 +77,13 @@ function buildItemsFromEdits(attrs: EditsAttrsForDetails | null | undefined, pro
   const style = joinEdits(arrFromEdits(a.style as string | string[]));
   const elements = joinEdits(arrFromEdits(a.elements as string | string[]));
   const features: string[] = [];
-  if (fit) features.push(`Fit: ${fit}`);
-  if (neckline) features.push(`Neckline: ${neckline}`);
-  if (sleeveStyle) features.push(`Sleeve Style: ${sleeveStyle}`);
-  if (sleeveLength) features.push(`Sleeve Length: ${sleeveLength}`);
-  if (season) features.push(`Season: ${season}`);
-  if (style) features.push(`Style: ${style}`);
-  if (elements) features.push(`Elements: ${elements}`);
+  if (fit) features.push(`${labels.fit}: ${fit}`);
+  if (neckline) features.push(`${labels.neckline}: ${neckline}`);
+  if (sleeveStyle) features.push(`${labels.sleeveStyle}: ${sleeveStyle}`);
+  if (sleeveLength) features.push(`${labels.sleeveLength}: ${sleeveLength}`);
+  if (season) features.push(`${labels.season}: ${season}`);
+  if (style) features.push(`${labels.style}: ${style}`);
+  if (elements) features.push(`${labels.elements}: ${elements}`);
 
   const careInstructions = a.care_instructions != null ? String(a.care_instructions).trim() : "";
 
@@ -69,16 +93,16 @@ function buildItemsFromEdits(attrs: EditsAttrsForDetails | null | undefined, pro
   const elasticity = a.elasticity != null ? String(a.elasticity).trim() : "";
   const breathability = a.breathability != null ? String(a.breathability).trim() : "";
   const fabricLines: string[] = [];
-  if (material) fabricLines.push(`Material: ${material}`);
-  if (fabricWeight) fabricLines.push(`Fabric Weight: ${fabricWeight}`);
-  if (thickness) fabricLines.push(`Thickness: ${thickness}`);
-  if (elasticity) fabricLines.push(`Elasticity: ${elasticity}`);
-  if (breathability) fabricLines.push(`Breathability: ${breathability}`);
+  if (material) fabricLines.push(`${labels.material}: ${material}`);
+  if (fabricWeight) fabricLines.push(`${labels.fabricWeight}: ${fabricWeight}`);
+  if (thickness) fabricLines.push(`${labels.thickness}: ${thickness}`);
+  if (elasticity) fabricLines.push(`${labels.elasticity}: ${elasticity}`);
+  if (breathability) fabricLines.push(`${labels.breathability}: ${breathability}`);
 
   const allFeaturesLines = [...details, ...features, ...fabricLines];
   const out: ProductDetailLike[] = [];
-  if (allFeaturesLines.length) out.push({ id: "edits-features", title: "Features", content_type: "kv", content: allFeaturesLines.join("\n"), sort_order: 0 });
-  if (careInstructions) out.push({ id: "edits-care", title: "Care Instructions", content_type: "list", content: careInstructions.split(/\n/).map((l) => `- ${l.trim()}`).join("\n"), sort_order: 1 });
+  if (allFeaturesLines.length) out.push({ id: "edits-features", title: labels.featuresTitle, content_type: "kv", content: allFeaturesLines.join("\n"), sort_order: 0 });
+  if (careInstructions) out.push({ id: "edits-care", title: labels.careInstructionsTitle, content_type: "list", content: careInstructions.split(/\n/).map((l) => `- ${l.trim()}`).join("\n"), sort_order: 1 });
   return out;
 }
 
@@ -92,9 +116,9 @@ function canonicalizeTitle(title: string): CanonicalSection {
 
   // common patterns / variants
   if (t === "details" || t.includes("detail")) return "details";
-  if (t === "features" || t.includes("feature")) return "features";
-  if (t.includes("care") || t.includes("washing") || t.includes("wash") || t.includes("care instruction")) return "care";
-  if (t.includes("fabric") || t.includes("material")) return "fabric";
+  if (t === "features" || t.includes("feature") || t.includes("ozellik")) return "features";
+  if (t.includes("care") || t.includes("washing") || t.includes("wash") || t.includes("care instruction") || t.includes("bakim")) return "care";
+  if (t.includes("fabric") || t.includes("material") || t.includes("kumas")) return "fabric";
   return "other";
 }
 
@@ -178,10 +202,29 @@ export function ProductDetailsAccordion({
   /** Product code from product for Details section */
   productCode?: string | null;
 }) {
+  const { t } = useI18n();
   const { data, isLoading } = useProductDetails(productId);
+  const labels = React.useMemo<DetailLabels>(() => ({
+    productCode: t("product.details.productCode"),
+    gender: t("product.details.gender"),
+    fit: t("product.details.fit"),
+    neckline: t("product.details.neckline"),
+    sleeveStyle: t("product.details.sleeveStyle"),
+    sleeveLength: t("product.details.sleeveLength"),
+    season: t("product.details.season"),
+    style: t("product.details.style"),
+    elements: t("product.details.elements"),
+    material: t("product.details.material"),
+    fabricWeight: t("product.details.fabricWeight"),
+    thickness: t("product.details.thickness"),
+    elasticity: t("product.details.elasticity"),
+    breathability: t("product.details.breathability"),
+    featuresTitle: t("product.details.featuresTitle"),
+    careInstructionsTitle: t("product.details.careInstructionsTitle"),
+  }), [t]);
   const items = React.useMemo(() => {
     const base = (data ?? []).filter((d) => Boolean(d.title));
-    const fromEdits = buildItemsFromEdits(attrsFromEdits, productCode);
+    const fromEdits = buildItemsFromEdits(attrsFromEdits, productCode, labels);
 
     let merged: ProductDetailLike[];
     if (base.length > 0) {
@@ -201,7 +244,7 @@ export function ProductDetailsAccordion({
       return (a.sort_order ?? 0) - (b.sort_order ?? 0);
     });
     return sorted;
-  }, [data, productId, attrsFromEdits, productCode]);
+  }, [data, productId, attrsFromEdits, productCode, labels]);
 
   const cleanNote = (noteHtml ?? "").trim();
   const hasNote = Boolean(cleanNote);
@@ -214,13 +257,13 @@ export function ProductDetailsAccordion({
     const body = (
       <div className="ru-details-wrap">
         <div className="ru-acc-text">
-          <p>No details added for this product yet.</p>
+          <p>{t("product.details.empty")}</p>
         </div>
       </div>
     );
 
     return embedded ? body : (
-        <section className="ts-container ru-section" aria-label="Product details">
+        <section className="ts-container ru-section" aria-label={t("product.details.aria")}>
           {body}
         </section>
       );
@@ -231,7 +274,7 @@ export function ProductDetailsAccordion({
       <Accordion type="single" collapsible defaultValue={defaultValue} className="ru-acc">
         {hasNote ? (
           <AccordionItem value="note" className="ru-acc-item">
-            <AccordionTrigger className="ru-acc-trigger">Description</AccordionTrigger>
+            <AccordionTrigger className="ru-acc-trigger">{t("product.details.descriptionTitle")}</AccordionTrigger>
             <AccordionContent className="ru-acc-content">{renderHtml(cleanNote)}</AccordionContent>
           </AccordionItem>
         ) : null}
@@ -248,7 +291,7 @@ export function ProductDetailsAccordion({
   );
 
   return embedded ? body : (
-      <section className="ts-container ru-section" aria-label="Product details">
+      <section className="ts-container ru-section" aria-label={t("product.details.aria")}>
         {body}
       </section>
     );

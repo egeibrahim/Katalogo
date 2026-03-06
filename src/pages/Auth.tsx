@@ -109,7 +109,7 @@ export default function Auth() {
 
   const redirectTo = useMemo(() => {
     const st = (location.state as LocationState | null) ?? null;
-    return st?.from?.pathname ?? "/catalog/all";
+    return st?.from?.pathname ?? "/catalog";
   }, [location.state]);
 
   const form = useForm<AuthValues>({

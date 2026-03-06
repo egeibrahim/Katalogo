@@ -25,6 +25,8 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import type { Locale } from "@/lib/i18n/locales";
 
 type ProductColorRow = {
   id: string;
@@ -112,6 +114,217 @@ function normalizeHex(raw: string) {
   return upper;
 }
 
+/** Hex kodu girildiğinde isim boş bırakılırsa, seçilen dile göre varsayılan renk adı kullanılır. */
+const HEX_DEFAULT_NAMES: Record<string, { tr: string; en: string }> = {
+  "#000000": { tr: "Siyah", en: "Black" },
+  "#FFFFFF": { tr: "Beyaz", en: "White" },
+  "#F44336": { tr: "Kırmızı", en: "Red" },
+  "#E53935": { tr: "Kırmızı", en: "Red" },
+  "#FF0000": { tr: "Kırmızı", en: "Red" },
+  "#2196F3": { tr: "Mavi", en: "Blue" },
+  "#1E88E5": { tr: "Mavi", en: "Blue" },
+  "#0000FF": { tr: "Mavi", en: "Blue" },
+  "#0D47A1": { tr: "Lacivert", en: "Navy" },
+  "#4CAF50": { tr: "Yeşil", en: "Green" },
+  "#2E7D32": { tr: "Yeşil", en: "Green" },
+  "#FFEB3B": { tr: "Sarı", en: "Yellow" },
+  "#FDD835": { tr: "Sarı", en: "Yellow" },
+  "#FF9800": { tr: "Turuncu", en: "Orange" },
+  "#EF6C00": { tr: "Turuncu", en: "Orange" },
+  "#9C27B0": { tr: "Mor", en: "Purple" },
+  "#673AB7": { tr: "Mor", en: "Purple" },
+  "#E91E63": { tr: "Pembe", en: "Pink" },
+  "#9E9E9E": { tr: "Gri", en: "Gray" },
+  "#757575": { tr: "Gri", en: "Gray" },
+  "#795548": { tr: "Kahverengi", en: "Brown" },
+  "#00BCD4": { tr: "Turkuaz", en: "Cyan" },
+  "#009688": { tr: "Turkuaz", en: "Teal" },
+  "#F5F5DC": { tr: "Bej", en: "Beige" },
+  "#800020": { tr: "Bordo", en: "Burgundy" },
+};
+
+/**
+ * TÜM İngilizce renk adları → tam Türkçe karşılıkları.
+ * Her renk kendi tam adıyla çevrilir; "mavi" gibi tek kelimeye indirgenmez.
+ * Uzun ifadeler önce. Arama ve TR gösterimde kullanılır.
+ */
+const COLOR_NAME_TO_TR: [string, string][] = [
+  // Mavi tonları – her biri tam Türkçe ad
+  ["air force blue", "hava kuvvetleri mavisi"],
+  ["midnight blue", "gece mavisi"],
+  ["navy blue", "lacivert"],
+  ["sapphire blue", "safir mavisi"],
+  ["cobalt blue", "kobalt mavisi"],
+  ["royal blue", "kraliyet mavisi"],
+  ["steel blue", "çelik mavisi"],
+  ["powder blue", "pudra mavisi"],
+  ["baby blue", "bebek mavisi"],
+  ["dark blue", "koyu mavi"],
+  ["light blue", "açık mavi"],
+  ["sky blue", "gök mavisi"],
+  ["azure", "azur mavisi"],
+  ["navy", "lacivert"],
+  ["cobalt", "kobalt mavisi"],
+  ["sapphire", "safir"],
+  ["denim", "kot mavisi"],
+  ["blue", "mavi"],
+  // Kırmızı tonları
+  ["dark red", "koyu kırmızı"],
+  ["light red", "açık kırmızı"],
+  ["crimson", "al"],
+  ["scarlet", "kıpkırmızı"],
+  ["cherry red", "kiraz kırmızısı"],
+  ["cherry", "kiraz rengi"],
+  ["wine", "şarap rengi"],
+  ["burgundy", "bordo"],
+  ["maroon", "bordo"],
+  ["red", "kırmızı"],
+  ["ruby", "yakut"],
+  // Yeşil tonları
+  ["forest green", "orman yeşili"],
+  ["army green", "askeri yeşil"],
+  ["olive green", "zeytin yeşili"],
+  ["lime green", "limon yeşili"],
+  ["mint green", "nane yeşili"],
+  ["hunter green", "avcı yeşili"],
+  ["kelly green", "parlak yeşil"],
+  ["sage green", "adaçayı yeşili"],
+  ["light green", "açık yeşil"],
+  ["dark green", "koyu yeşil"],
+  ["green", "yeşil"],
+  ["emerald", "zümrüt yeşili"],
+  ["jade", "yeşim taşı"],
+  ["moss", "yosun yeşili"],
+  ["fern", "eğrelti otu yeşili"],
+  ["sage", "adaçayı yeşili"],
+  ["seafoam", "deniz köpüğü yeşili"],
+  ["spearmint", "nane yeşili"],
+  ["mint", "nane yeşili"],
+  ["olive", "zeytin yeşili"],
+  ["hunter", "avcı yeşili"],
+  ["kelly", "parlak yeşil"],
+  ["army", "askeri yeşil"],
+  // Sarı / turuncu tonları
+  ["rose gold", "gül altını"],
+  ["golden", "altın rengi"],
+  ["gold", "altın"],
+  ["mustard", "hardal sarısı"],
+  ["honey", "bal rengi"],
+  ["lemon", "limon sarısı"],
+  ["tangerine", "mandalina turuncusu"],
+  ["dark orange", "koyu turuncu"],
+  ["light orange", "açık turuncu"],
+  ["orange", "turuncu"],
+  ["amber", "kehribar"],
+  ["yellow", "sarı"],
+  ["apricot", "kayısı rengi"],
+  // Mor / pembe tonları
+  ["eggplant", "patlıcan moru"],
+  ["lavender", "lavanta"],
+  ["lilac", "leylak"],
+  ["violet", "menekşe"],
+  ["plum", "erik moru"],
+  ["mauve", "eflatun"],
+  ["purple", "mor"],
+  ["indigo", "çivit mavisi"],
+  ["grape", "üzüm moru"],
+  ["hot pink", "sıcak pembe"],
+  ["light pink", "açık pembe"],
+  ["blush", "allık"],
+  ["rose", "gül kurusu"],
+  ["pink", "pembe"],
+  ["magenta", "magenta"],
+  ["coral", "mercan rengi"],
+  ["salmon", "somon rengi"],
+  ["peach", "şeftali rengi"],
+  ["berry", "çilek rengi"],
+  // Gri / nötr tonları
+  ["charcoal gray", "kömür grisi"],
+  ["charcoal", "kömür grisi"],
+  ["slate gray", "arduvaz grisi"],
+  ["slate", "arduvaz grisi"],
+  ["graphite", "grafit grisi"],
+  ["gunmetal", "silah metali grisi"],
+  ["dark gray", "koyu gri"],
+  ["light gray", "açık gri"],
+  ["gray", "gri"],
+  ["grey", "gri"],
+  ["silver", "gümüş"],
+  ["pearl", "inci rengi"],
+  ["ash", "kül grisi"],
+  ["smoke", "duman grisi"],
+  ["stone", "taş grisi"],
+  ["concrete", "beton grisi"],
+  ["heather", "pamuklu gri"],
+  // Kahverengi / toprak tonları
+  ["espresso", "espresso kahverengisi"],
+  ["chocolate", "çikolata kahverengisi"],
+  ["dark brown", "koyu kahverengi"],
+  ["light brown", "açık kahverengi"],
+  ["brown", "kahverengi"],
+  ["mocha", "mocha kahverengisi"],
+  ["caramel", "karamel"],
+  ["terracotta", "terracotta"],
+  ["clay", "kil rengi"],
+  ["tan", "buğday rengi"],
+  ["sand", "kum rengi"],
+  ["oatmeal", "yulaf rengi"],
+  ["beige", "bej"],
+  ["cream", "krem"],
+  ["ivory", "fildişi"],
+  ["champagne", "şampanya"],
+  ["rust", "pas rengi"],
+  ["bronze", "bronz"],
+  ["copper", "bakır rengi"],
+  // Turkuaz / camgöbeği
+  ["turquoise", "turkuaz"],
+  ["teal", "petrol mavisi"],
+  ["cyan", "camgöbeği"],
+  ["aqua", "su mavisi"],
+  // Siyah / beyaz
+  ["black", "siyah"],
+  ["white", "beyaz"],
+  ["snow", "kar beyazı"],
+  ["ice", "buz"],
+  ["frost", "buz"],
+  ["ink", "mürekkep"],
+  ["midnight", "gece mavisi"],
+  // Diğer
+  ["khaki", "haki"],
+  ["antique", "antika"],
+  ["neon", "neon"],
+  ["pastel", "pastel"],
+  ["fluorescent", "floresan"],
+  ["bright", "parlak"],
+  ["electric", "elektrik mavisi"],
+];
+
+/** Uzun eşleşme önce: en uzun en başta. */
+const COLOR_SEARCH_SYNONYMS_SORTED = [...COLOR_NAME_TO_TR].sort((a, b) => b[0].length - a[0].length);
+
+/** Renk adına göre TR aramada kullanılacak Türkçe terimleri döndürür. */
+function getTurkishSearchTerms(colorName: string): string {
+  const n = colorName.toLocaleLowerCase("tr");
+  const terms: string[] = [];
+  for (const [en, tr] of COLOR_NAME_TO_TR) {
+    if (n.includes(en)) terms.push(tr);
+  }
+  return terms.join(" ");
+}
+
+/** TR dilinde gösterim için orijinal Türkçe adı döndürür; yoksa orijinal adı verir. */
+function getColorDisplayName(name: string, hexCode: string, locale: string): string {
+  if (locale !== "tr") return name;
+  const hex = normalizeHex(hexCode);
+  const trFromHex = HEX_DEFAULT_NAMES[hex]?.tr;
+  if (trFromHex) return trFromHex;
+  const n = name.toLocaleLowerCase("tr");
+  for (const [en, tr] of COLOR_SEARCH_SYNONYMS_SORTED) {
+    if (n.includes(en)) return tr;
+  }
+  return name;
+}
+
 function isValidHex(hex: string) {
   return /^#([0-9A-F]{6})$/.test(hex);
 }
@@ -144,6 +357,7 @@ type MultiProps = BaseProps & {
 export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | MultiProps>((props, ref) => {
   const queryClient = useQueryClient();
   const { isAdmin } = useAuth();
+  const { t, locale } = useI18n();
   const [open, setOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -186,8 +400,22 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
     if (!q) return colors;
-    return colors.filter((c) => c.name.toLocaleLowerCase("tr").includes(q) || c.hex_code.toLowerCase().includes(q));
-  }, [colors, query]);
+    return colors.filter((c) => {
+      const nameLower = c.name.toLocaleLowerCase("tr");
+      if (nameLower.includes(q)) return true;
+      if (c.hex_code.toLowerCase().includes(q)) return true;
+      if (locale === "tr") {
+        const hex = normalizeHex(c.hex_code);
+        const trFromHex = HEX_DEFAULT_NAMES[hex]?.tr ?? "";
+        const trFromName = getTurkishSearchTerms(c.name);
+        const searchableTr = `${trFromHex} ${trFromName}`.trim().toLocaleLowerCase("tr");
+        if (searchableTr && searchableTr.includes(q)) return true;
+      }
+      return false;
+    });
+  }, [colors, query, locale]);
+
+  const displayOrder = filtered;
 
   const importFileMutation = useMutation({
     mutationFn: async ({ file, mode }: { file: File; mode: ImportMode }) => {
@@ -390,7 +618,9 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
       const nextSortOrder =
         colors.reduce((max, c) => Math.max(max, c.sort_order ?? 0), 0) + 1;
 
-      const name = newName.trim() || normalized;
+      const defaultNames = HEX_DEFAULT_NAMES[normalized];
+      const nameByLocale = defaultNames?.[locale as Locale];
+      const name = newName.trim() || nameByLocale || normalized;
 
       const { data: inserted, error: insertErr } = await supabase
         .from("product_colors")
@@ -416,11 +646,11 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
       setNewHex("");
       setNewName("");
 
-      if (res.mode === "inserted") toast.success("Renk havuza eklendi");
-      else toast.message("Mevcut renk seçildi");
+      if (res.mode === "inserted") toast.success(t("colorPool.added"));
+      else toast.message(t("colorPool.selectExisting"));
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Renk eklenemedi";
+      const msg = err instanceof Error ? err.message : t("colorPool.addError");
       toast.error(msg);
     },
   });
@@ -431,9 +661,8 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!open) return;
-    
     const cols = 12;
-    const totalColors = filtered.length;
+    const totalColors = displayOrder.length;
 
     if (e.key === "ArrowRight") {
       e.preventDefault();
@@ -458,7 +687,7 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
       });
     } else if (e.key === "Enter" && focusedIndex >= 0 && focusedIndex < totalColors) {
       e.preventDefault();
-      const color = filtered[focusedIndex];
+      const color = displayOrder[focusedIndex];
       if (color) {
         if (isMulti) {
           props.onColorToggle(color.id, color.hex_code);
@@ -490,8 +719,8 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
           variant="outline"
           size="icon"
           className={cn("h-9 w-9 rounded-lg", props.className)}
-          title="Renk havuzu"
-          aria-label="Renk havuzu"
+          title={t("colorPool.title")}
+          aria-label={t("colorPool.title")}
         >
           <Pipette className="h-4 w-4" />
         </Button>
@@ -500,7 +729,7 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
       <PopoverContent align="start" side="bottom" collisionPadding={12} className="w-[400px] p-3" onKeyDown={handleKeyDown}>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Renk Havuzu</p>
+            <p className="text-sm font-medium">{t("colorPool.title")}</p>
             <div className="flex items-center gap-2">
               {isAdmin ? (
                 <div className="flex items-center gap-2">
@@ -526,24 +755,21 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
                     className="h-8"
                     disabled={importFileMutation.isPending}
                     onClick={() => fileInputRef.current?.click()}
-                    title="CSV seçip renk paletini değiştir"
+                    title={t("colorPool.replaceByCsv")}
                   >
-                    {importFileMutation.isPending ? "Yükleniyor…" : "Paleti CSV ile değiştir"}
+                    {importFileMutation.isPending ? t("colorPool.loading") : t("colorPool.replaceByCsv")}
                   </Button>
                 </div>
               ) : null}
-              <span className="text-xs text-muted-foreground">{colors.length} renk</span>
+              <span className="text-xs text-muted-foreground">{t("colorPool.colorCount", { count: String(colors.length) })}</span>
             </div>
           </div>
 
           <AlertDialog open={confirmReplaceOpen} onOpenChange={setConfirmReplaceOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Renk paleti değiştirilsin mi?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Mevcut tüm renkler pasiflenir ve bu CSV’deki renkler aktif edilir. (Var olan ürünlerde
-                  kullanılan renkler bozulmaz.)
-                </AlertDialogDescription>
+                <AlertDialogTitle>{t("colorPool.replaceConfirmTitle")}</AlertDialogTitle>
+                <AlertDialogDescription>{t("colorPool.replaceConfirmDescription")}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel
@@ -552,7 +778,7 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
                     pendingFileRef.current = null;
                   }}
                 >
-                  Vazgeç
+                  {t("colorPool.cancel")}
                 </AlertDialogCancel>
                 <AlertDialogAction
                   type="button"
@@ -564,7 +790,7 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
                     void importFileMutation.mutateAsync({ file: f, mode: "replace" });
                   }}
                 >
-                  Değiştir
+                  {t("colorPool.confirm")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -577,10 +803,10 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
               setQuery(e.target.value);
               setFocusedIndex(-1);
             }}
-            placeholder="Ara (isim / #hex)"
+            placeholder={t("colorPool.searchPlaceholder")}
             className="h-9"
             onKeyDown={(e) => {
-              if (e.key === "ArrowDown" && filtered.length > 0) {
+              if (e.key === "ArrowDown" && displayOrder.length > 0) {
                 e.preventDefault();
                 setFocusedIndex(0);
               }
@@ -589,13 +815,13 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
 
           <div className="max-h-[260px] overflow-auto pr-1">
             {isLoading ? (
-              <p className="text-xs text-muted-foreground py-2">Yükleniyor…</p>
-            ) : filtered.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">Sonuç yok.</p>
+              <p className="text-xs text-muted-foreground py-2">{t("colorPool.loading")}</p>
+            ) : displayOrder.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">{t("colorPool.noResults")}</p>
             ) : (
               <TooltipProvider delayDuration={200}>
                 <div ref={gridRef} className="grid grid-cols-12 gap-1.5">
-                  {filtered.map((c, idx) => {
+                  {displayOrder.map((c, idx) => {
                     const active = isMulti ? selectedColorIds.includes(c.id) : selectedColorId === c.id;
                     const isFocused = idx === focusedIndex;
                     return (
@@ -612,7 +838,7 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
                               }
                             }}
                             onFocus={() => setFocusedIndex(idx)}
-                            aria-label={`${c.name} (${c.hex_code}) seç`}
+                            aria-label={t("colorPool.ariaSelect", { name: getColorDisplayName(c.name, c.hex_code, locale), hex: c.hex_code })}
                             className={cn(
                               "relative h-6 w-6 rounded-full border transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                               active
@@ -638,7 +864,7 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
                           </button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
-                          <p className="font-medium leading-none">{c.name}</p>
+                          <p className="font-medium leading-none">{getColorDisplayName(c.name, c.hex_code, locale)}</p>
                           <p className="mt-1 text-xs text-muted-foreground leading-none">{c.hex_code}</p>
                         </TooltipContent>
                       </Tooltip>
@@ -650,7 +876,7 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
           </div>
 
           <div className="pt-2 border-t border-border space-y-2">
-            <p className="text-sm font-medium">Manuel ekle</p>
+            <p className="text-sm font-medium">{t("colorPool.addManually")}</p>
             <div className="grid grid-cols-1 gap-2">
               <Input
                 value={newHex}
@@ -665,7 +891,7 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
                 <Input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="İsim (opsiyonel)"
+                  placeholder={locale === "tr" ? t("colorPool.namePlaceholderTr") : t("colorPool.namePlaceholderEn")}
                   className="h-9"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleAdd();
@@ -684,7 +910,7 @@ export const ColorPoolPopover = forwardRef<HTMLButtonElement, SingleProps | Mult
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Hex formatı: #RRGGBB</p>
+            <p className="text-xs text-muted-foreground">{t("colorPool.hexFormat")}</p>
           </div>
         </div>
       </PopoverContent>

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 
 import { supabase } from "@/integrations/supabase/client";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { getProductPath } from "@/lib/productUrls";
+import { formatMoney, normalizeCurrency } from "@/lib/currency";
 import { SignedImage } from "@/components/ui/signed-image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,9 +16,11 @@ type ProductRow = {
   id: string;
   name: string;
   slug: string | null;
+  product_code: string | null;
   cover_image_url: string | null;
   thumbnail_url: string | null;
   price_from: number | null;
+  currency: string | null;
   is_active: boolean | null;
   created_at: string;
   categories?: { name: string } | null;
@@ -31,14 +35,14 @@ export default function AdminCatalog() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id,name,slug,cover_image_url,thumbnail_url,price_from,is_active,created_at,categories(name)")
+        .select("id,name,slug,product_code,cover_image_url,thumbnail_url,price_from,currency,is_active,created_at,categories(name)")
         .is("owner_user_id", null)
         .order("sort_order", { ascending: true });
       if (!error) return (data ?? []) as ProductRow[];
       if (!error.message?.includes("owner_user_id") && !error.message?.includes("schema cache")) throw error;
       const { data: data2, error: err2 } = await supabase
         .from("products")
-        .select("id,name,slug,cover_image_url,thumbnail_url,price_from,is_active,created_at,categories(name)")
+        .select("id,name,slug,product_code,cover_image_url,thumbnail_url,price_from,currency,is_active,created_at,categories(name)")
         .order("sort_order", { ascending: true });
       if (err2) throw err2;
       return (data2 ?? []) as ProductRow[];
@@ -94,15 +98,15 @@ export default function AdminCatalog() {
                         </div>
                       </TableCell>
                       <TableCell>{p.categories?.name ?? "—"}</TableCell>
-                      <TableCell>{p.price_from != null ? `$${p.price_from}` : "—"}</TableCell>
+                      <TableCell>{p.price_from != null ? formatMoney(Number(p.price_from), normalizeCurrency(p.currency)) : "—"}</TableCell>
                       <TableCell>
-                        <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? "Published" : "Draft"}</Badge>
+                        <Badge variant={p.is_active ? "success" : "secondary"}>{p.is_active ? "Published" : "Draft"}</Badge>
                       </TableCell>
                       <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button variant="outline" size="icon" asChild title="Open in store">
-                            <a href={p.slug ? `/product/${p.slug}` : `/product/id/${p.id}`} target="_blank" rel="noopener noreferrer">
+                            <a href={getProductPath({ slug: p.slug, productCode: p.product_code, id: p.id })} target="_blank" rel="noopener noreferrer">
                               <ExternalLink className="h-4 w-4" />
                             </a>
                           </Button>

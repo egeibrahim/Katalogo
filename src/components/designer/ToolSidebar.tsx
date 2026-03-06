@@ -18,7 +18,7 @@ export function ToolSidebar({ activeTab, onTabChange }: ToolSidebarProps) {
   const visibleTabs = tabs;
 
   return (
-    <aside className="w-16 bg-card border-r border-border flex flex-col items-center py-4 gap-1">
+    <aside className="w-16 bg-white border-r border-border flex flex-col items-center py-4 gap-1">
       <TooltipProvider delayDuration={200}>
         {visibleTabs.map((tab) => (
           <div key={tab.id}>

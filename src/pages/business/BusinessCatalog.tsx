@@ -4,22 +4,25 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { formatMoney, normalizeCurrency } from "@/lib/currency";
 import { SignedImage } from "@/components/ui/signed-image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { slugify } from "@/lib/slug";
+import { resolveUniqueProductSlug } from "@/lib/productSlug";
 
 type ProductRow = {
   id: string;
   name: string;
   slug: string | null;
+  product_code: string | null;
   cover_image_url: string | null;
   thumbnail_url: string | null;
   price_from: number | null;
-  is_active: boolean | null;
+  currency: string | null;
   created_at: string;
   categories?: { name: string } | null;
 };
@@ -37,14 +40,14 @@ export default function BusinessCatalog() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id,name,slug,cover_image_url,thumbnail_url,price_from,is_active,created_at,categories(name)")
+        .select("id,name,slug,product_code,cover_image_url,thumbnail_url,price_from,currency,created_at,categories(name)")
         .is("owner_user_id", null)
         .order("sort_order", { ascending: true });
       if (!error) return (data ?? []) as ProductRow[];
       if (!error.message?.includes("owner_user_id") && !error.message?.includes("schema cache")) throw error;
       const { data: data2, error: err2 } = await supabase
         .from("products")
-        .select("id,name,slug,cover_image_url,thumbnail_url,price_from,is_active,created_at,categories(name)")
+        .select("id,name,slug,product_code,cover_image_url,thumbnail_url,price_from,currency,created_at,categories(name)")
         .order("sort_order", { ascending: true });
       if (err2) throw err2;
       return (data2 ?? []) as ProductRow[];
@@ -71,9 +74,13 @@ export default function BusinessCatalog() {
         .maybeSingle();
       const maxOrder = (existing as any)?.sort_order ?? 0;
 
+      const copyName = `${(source as any).name ?? "Product"} (Copy)`;
+      const baseSlug = slugify(copyName);
+      const uniqueSlug = await resolveUniqueProductSlug(baseSlug || null);
+
       const insertPayload: Record<string, unknown> = {
-        name: `${(source as any).name ?? "Product"} (Copy)`,
-        slug: null,
+        name: copyName,
+        slug: uniqueSlug,
         category_id: (source as any).category_id ?? null,
         price_from: (source as any).price_from ?? null,
         is_active: false,
@@ -94,6 +101,13 @@ export default function BusinessCatalog() {
         const res = await supabase.from("products").insert(insertPayload as any).select("id").single();
         insertErr = res.error;
         newProduct = res.data;
+        if (!insertErr && newProduct && userId) {
+          const { error: ownerFixErr } = await supabase
+            .from("products")
+            .update({ owner_user_id: userId })
+            .eq("id", (newProduct as { id: string }).id);
+          if (ownerFixErr) throw ownerFixErr;
+        }
       }
       if (insertErr || !newProduct) throw new Error(insertErr?.message ?? "Copy failed");
       const newId = (newProduct as { id: string }).id;
@@ -129,13 +143,16 @@ export default function BusinessCatalog() {
         .select("product_view_id,color_id,mockup_image_url")
         .in("product_view_id", Object.keys(viewIdMap));
       if (colorMockups?.length) {
-        await supabase.from("product_view_color_mockups").insert(
-          colorMockups.map((m: any) => ({
-            product_view_id: viewIdMap[m.product_view_id] ?? m.product_view_id,
-            color_id: m.color_id,
-            mockup_image_url: m.mockup_image_url,
-          }))
+        const { error: cmErr } = await supabase.from("product_view_color_mockups").insert(
+          colorMockups
+            .map((m: any) => ({
+              product_view_id: viewIdMap[m.product_view_id] ?? null,
+              color_id: m.color_id,
+              mockup_image_url: m.mockup_image_url,
+            }))
+            .filter((x) => Boolean(x.product_view_id))
         );
+        if (cmErr) throw new Error(cmErr.message);
       }
 
       const { data: gallery } = await supabase
@@ -155,9 +172,10 @@ export default function BusinessCatalog() {
 
       const { data: colorVariants } = await supabase.from("product_color_variants").select("color_id").eq("product_id", sourceId);
       if (colorVariants?.length) {
-        await supabase.from("product_color_variants").insert(
+        const { error: cvErr } = await supabase.from("product_color_variants").insert(
           (colorVariants as any[]).map((c) => ({ product_id: newId, color_id: c.color_id }))
         );
+        if (cvErr) throw new Error(cvErr.message);
       }
 
       const { data: sizeVariants } = await supabase.from("product_size_variants").select("size_id").eq("product_id", sourceId);
@@ -169,7 +187,25 @@ export default function BusinessCatalog() {
 
       const { data: attrsRow } = await supabase.from("product_attributes").select("data").eq("product_id", sourceId).maybeSingle();
       if (attrsRow?.data) {
-        await supabase.from("product_attributes").upsert([{ product_id: newId, data: attrsRow.data }], { onConflict: "product_id" });
+        const raw = attrsRow.data as any;
+        const byView = raw?.print_area_dimensions_by_view;
+        const nextByView: Record<string, unknown> = {};
+        if (byView && typeof byView === "object" && !Array.isArray(byView)) {
+          for (const [oldViewId, dims] of Object.entries(byView as Record<string, unknown>)) {
+            const newViewId = viewIdMap[oldViewId];
+            if (newViewId) nextByView[newViewId] = dims;
+          }
+        }
+
+        const nextData =
+          byView && Object.keys(nextByView).length > 0
+            ? { ...raw, print_area_dimensions_by_view: nextByView }
+            : raw;
+
+        const { error: attrsErr } = await supabase
+          .from("product_attributes")
+          .upsert([{ product_id: newId, data: nextData }], { onConflict: "product_id" });
+        if (attrsErr) throw new Error(attrsErr.message);
       }
 
       const { data: mockupRow } = await supabase.from("product_mockups").select("*").eq("product_id", sourceId).maybeSingle();
@@ -178,36 +214,62 @@ export default function BusinessCatalog() {
         await supabase.from("product_mockups").upsert([{ product_id: newId, ...rest }], { onConflict: "product_id" });
       }
 
-      const { data: tiers } = await supabase
-        .from("product_unit_price_tiers")
-        .select("min_qty,max_qty,unit_price,currency,sort_order")
-        .eq("product_id", sourceId)
-        .order("sort_order", { ascending: true });
-      if (tiers?.length) {
-        await supabase.from("product_unit_price_tiers").insert(
-          (tiers as any[]).map((t, i) => ({
-            product_id: newId,
-            min_qty: t.min_qty,
-            max_qty: t.max_qty,
-            unit_price: t.unit_price,
-            currency: t.currency ?? "USD",
-            sort_order: i,
-          }))
-        );
+      // Do not copy unit price tiers or shipping overrides; brand users should define their own.
+      // Ensure these tables stay empty for the new product id just in case.
+      await supabase.from("product_unit_price_tiers").delete().eq("product_id", newId);
+      await supabase.from("product_shipping_overrides").delete().eq("product_id", newId);
+
+      const { data: firstCatalog, error: firstCatalogErr } = await supabase
+        .from("catalogs")
+        .select("id")
+        .eq("owner_user_id", userId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (firstCatalogErr) throw new Error(firstCatalogErr.message);
+
+      let targetCatalogId = (firstCatalog as { id?: string } | null)?.id ?? null;
+      if (!targetCatalogId) {
+        const base = slugify((user.email ?? "katalogim").split("@")[0] || "katalogim");
+        const slug = `${base || "katalogim"}-${Date.now().toString().slice(-6)}`;
+        const { data: createdCatalog, error: createCatalogErr } = await supabase
+          .from("catalogs")
+          .insert({
+            owner_user_id: userId,
+            name: "Katalogım",
+            slug,
+            contact_email: user.email ?? "info@example.com",
+            is_public: false,
+          })
+          .select("id")
+          .single();
+        if (createCatalogErr || !createdCatalog) throw new Error(createCatalogErr?.message ?? "Catalog create failed");
+        targetCatalogId = (createdCatalog as { id: string }).id;
       }
 
-      const { data: shippingRow } = await supabase.from("product_shipping_overrides").select("*").eq("product_id", sourceId).maybeSingle();
-      if (shippingRow) {
-        const { product_id: _, id: __, ...rest } = shippingRow as any;
-        await supabase.from("product_shipping_overrides").upsert([{ product_id: newId, ...rest }], { onConflict: "product_id" });
-      }
+      const { count: existingCount, error: countErr } = await supabase
+        .from("catalog_products")
+        .select("id", { count: "exact", head: true })
+        .eq("catalog_id", targetCatalogId);
+      if (countErr) throw new Error(countErr.message);
 
-      return newId;
+      const { error: addToCatalogErr } = await supabase
+        .from("catalog_products")
+        .insert({
+          catalog_id: targetCatalogId,
+          product_id: newId,
+          sort_order: existingCount ?? 0,
+        });
+      if (addToCatalogErr) throw new Error(addToCatalogErr.message);
+
+      return { newId, targetCatalogId };
     },
-    onSuccess: (newId) => {
-      toast.success("Product copied. Added to My products tab.");
+    onSuccess: ({ targetCatalogId }) => {
+      toast.success("Ürün kopyalandı ve Kataloglarım'a eklendi.");
       qc.invalidateQueries({ queryKey: ["business", "products", userId] });
-      navigate("/brand/products");
+      qc.invalidateQueries({ queryKey: ["business", "catalogs", userId] });
+      qc.invalidateQueries({ queryKey: ["business", "catalog_products", targetCatalogId] });
+      navigate(`/brand/catalogs/${targetCatalogId}/products`);
     },
     onError: (e: any) => toast.error(e?.message ?? "Copy failed"),
   });
@@ -230,7 +292,7 @@ export default function BusinessCatalog() {
         <CardHeader>
           <CardTitle>Katalog</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Copy products from the platform catalog to add to your own products, then edit them.
+            Buradaki hazır ürünler örnek havuzdur. Kopyalanan ürün Kataloglarım'a eklenir ve düzenlenebilir olur.
           </p>
         </CardHeader>
         <CardContent>
@@ -241,7 +303,6 @@ export default function BusinessCatalog() {
                   <TableHead>Product name</TableHead>
                   <TableHead>Kategori</TableHead>
                   <TableHead>Fiyat</TableHead>
-                  <TableHead>Durum</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="w-[120px] text-right">Action</TableHead>
                 </TableRow>
@@ -249,11 +310,11 @@ export default function BusinessCatalog() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Loading…</TableCell>
+                    <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">Loading…</TableCell>
                   </TableRow>
                 ) : items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">No products in catalog yet.</TableCell>
+                    <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">No products in catalog yet.</TableCell>
                   </TableRow>
                 ) : (
                   items.map((p) => (
@@ -269,10 +330,7 @@ export default function BusinessCatalog() {
                         </div>
                       </TableCell>
                       <TableCell>{p.categories?.name ?? "—"}</TableCell>
-                      <TableCell>{p.price_from != null ? `$${p.price_from}` : "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? "Published" : "Draft"}</Badge>
-                      </TableCell>
+                      <TableCell>{p.price_from != null ? formatMoney(Number(p.price_from), normalizeCurrency(p.currency)) : "—"}</TableCell>
                       <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         <Button

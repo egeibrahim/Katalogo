@@ -3,6 +3,7 @@ import "./landing-awake.css";
 import "./pricing-awake.css";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Check, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,7 +55,9 @@ function isAuthErrorMessage(message: string): boolean {
 }
 
 export default function Pricing() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const isTr = locale === "tr";
+  const queryClient = useQueryClient();
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -93,9 +96,14 @@ export default function Pricing() {
     const clearPending = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          await supabase.functions.invoke("clear-pending-plan");
-        }
+        const sessionId = searchParams.get("session_id");
+        await supabase.functions.invoke("clear-pending-plan", {
+          body: sessionId ? { session_id: sessionId } : {},
+          headers: session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : undefined,
+        });
+        await queryClient.invalidateQueries({ queryKey: ["user_membership"] });
       } catch {
         /* Sessizce yoksay – kritik değil */
       }
@@ -110,7 +118,7 @@ export default function Pricing() {
       url.searchParams.delete("session_id");
       window.history.replaceState({}, "", url.pathname);
     }
-  }, [searchParams]);
+  }, [searchParams, queryClient, t]);
 
   async function handleStripeCheckout(planId: "individual" | "brand") {
     setCheckoutLoading(planId);
@@ -208,54 +216,83 @@ export default function Pricing() {
   const plans = [
     {
       name: "Free",
-      description: t("pricing.plan.free.desc"),
+      description: isTr ? "İhtiyaç halinde kullanım için ideal." : "Ideal for occasional use.",
       priceMonthly: null as string | null,
       priceYearly: null as string | null,
-      priceLabel: t("pricing.plan.free.priceLabel"),
-      cta: t("pricing.plan.free.cta"),
+      priceLabel: isTr ? "Ücretsiz" : "Free",
+      cta: isTr ? "Ücretsiz başla" : "Start free",
       href: "/auth",
-      features: [t("nav.catalog"), t("landing.servicesDesigner"), t("designer.export")],
+      features: isTr
+        ? ["Tüm kataloğa erişim", "Designer ile mockup oluştur", "Günlük 2 adet indirme"]
+        : ["Access full catalog", "Create mockups in Designer", "2 downloads per day"],
       variant: "free" as const,
     },
     {
-      name: t("pricing.plan.individual.name"),
-      description: t("pricing.plan.individual.desc"),
+      name: isTr ? "Kişisel" : "Personal",
+      description: isTr
+        ? "Düzenli ürün tasarlayanlar için sınırsız erişim planı."
+        : "Unlimited access for regular product creators.",
       priceMonthly: "$7",
       priceYearly: "$70",
       priceLabel: null,
-      cta: t("pricing.plan.individual.cta"),
+      cta: isTr ? "Başla" : "Start",
       href: "/auth",
       stripePlanId: "individual" as const,
-      features: [t("nav.catalog"), t("landing.servicesDesigner"), t("designer.exportOriginal")],
+      features: isTr
+        ? ["Tüm kataloğa erişim", "Sınırsız Designer kullanımı", "Sınırsız mockup indirme"]
+        : ["Access full catalog", "Unlimited Designer usage", "Unlimited mockup downloads"],
       variant: "warning" as const,
     },
     {
-      name: t("pricing.plan.brand.name"),
-      description: t("pricing.plan.brand.desc"),
+      name: isTr ? "Marka" : "Brand",
+      description: isTr
+        ? "Kendi ürün kataloğunuzu oluşturun, müşteri tekliflerini yönetin. Özel marka sayfanızla satışı büyütün."
+        : "Build your own product catalog, manage customer quotes, and grow sales with your dedicated brand page.",
       priceMonthly: "$20",
       priceYearly: "$200",
       priceLabel: null,
-      cta: t("pricing.plan.brand.cta"),
+      cta: isTr ? "Marka planı" : "Brand plan",
       href: "/auth",
       stripePlanId: "brand" as const,
-      features: [
-        t("publicCatalogList.title"),
-        t("landing.servicesBrandPage"),
-        t("landing.servicesDesigner"),
-        t("landing.servicesQuotes"),
-      ],
+      features: isTr
+        ? [
+            "Markanıza ait web kataloğu",
+            "Özel marka sayfası (kendi URL adınız)",
+            "Müşterilerin ürünlerinizle mockup oluşturması",
+            "Müşterilerden teklif alma",
+          ]
+        : [
+            "A web catalog dedicated to your brand",
+            "Private brand page (your custom URL slug)",
+            "Customers create mockups with your products",
+            "Receive quote requests from customers",
+          ],
       variant: "primary" as const,
     },
     {
-      name: t("pricing.plan.enterprise.name"),
-      description: t("pricing.plan.enterprise.desc"),
+      name: isTr ? "Kurumsal" : "Enterprise",
+      description: isTr
+        ? "Kurumsal ihtiyaçlarınız için özel alan adı, markaya özel tasarım ve entegre ödeme çözümleri."
+        : "Custom domain, brand-specific design, and integrated payment solutions for enterprise needs.",
       priceMonthly: null,
       priceYearly: null,
-      priceLabel: t("pricing.plan.enterprise.priceLabel"),
-      cta: t("pricing.plan.enterprise.cta"),
+      priceLabel: isTr ? "Teklif" : "Quote",
+      cta: isTr ? "İletişime geç" : "Contact us",
       href: "/auth",
       stripePlanId: null as "individual" | "brand" | null,
-      features: [t("pricing.plan.brand.desc"), t("common.contact"), t("landing.servicesPublish"), t("common.apply")],
+      features: isTr
+        ? [
+            "Marka planındaki tüm özellikler dahil",
+            "Kurumsal kimliğinize uygun özel alan adı (custom domain)",
+            "Markanıza özel web tasarım ve arayüz",
+            "Entegre ödeme altyapısı",
+          ]
+        : [
+            "Includes all features in the Brand plan",
+            "Custom domain aligned with your corporate identity",
+            "Brand-specific web design and interface",
+            "Integrated payment infrastructure",
+          ],
       variant: "dark" as const,
     },
   ];
@@ -266,7 +303,7 @@ export default function Pricing() {
         <div className="awake-pricing-container">
           <div className="awake-pricing-header">
             <h2 className="awake-pricing-title">
-              {t("pricing.title")}
+              {isTr ? "İhtiyacına uygun planı seç" : "Choose the plan that fits your needs"}
             </h2>
             <div className="awake-pricing-toggle-wrap">
               <button
@@ -274,14 +311,14 @@ export default function Pricing() {
                 className={`awake-pricing-toggle-btn ${billingPeriod === "monthly" ? "awake-pricing-toggle-btn--active" : ""}`}
                 onClick={() => setBillingPeriod("monthly")}
               >
-                {t("pricing.monthly")}
+                {isTr ? "Aylık" : "Monthly"}
               </button>
               <button
                 type="button"
                 className={`awake-pricing-toggle-btn ${billingPeriod === "yearly" ? "awake-pricing-toggle-btn--active" : ""}`}
                 onClick={() => setBillingPeriod("yearly")}
               >
-                {t("pricing.yearly")}
+                {isTr ? "Yıllık" : "Yearly"}
               </button>
               <span className="awake-pricing-toggle-slider" data-active={billingPeriod} />
             </div>
@@ -308,7 +345,7 @@ export default function Pricing() {
                             disabled={!!checkoutLoading}
                           >
                             <span className="awake-pricing-btn-text">
-                              {billingPeriod === "monthly" ? `${plan.priceMonthly}/${t("pricing.monthly").toLowerCase()}` : `${plan.priceYearly}/${t("pricing.yearly").toLowerCase()}`}
+                              {billingPeriod === "monthly" ? `${plan.priceMonthly}/${isTr ? "ay" : "mo"}` : `${plan.priceYearly}/${isTr ? "yıl" : "yr"}`}
                             </span>
                             <span className="awake-pricing-btn-icon">
                               <ArrowUpRight className="awake-pricing-btn-icon-svg" aria-hidden />
@@ -317,7 +354,11 @@ export default function Pricing() {
                         ) : (
                           <Link to={plan.href} className={`awake-pricing-btn ${plan.variant === "free" ? "awake-pricing-btn--dark" : "awake-pricing-btn--white"}`}>
                             <span className="awake-pricing-btn-text">
-                              {plan.priceLabel ? plan.cta : billingPeriod === "monthly" ? `${plan.priceMonthly}/${t("pricing.monthly").toLowerCase()} — ${plan.cta}` : `${plan.priceYearly}/${t("pricing.yearly").toLowerCase()} — ${plan.cta}`}
+                              {plan.priceLabel
+                                ? plan.cta
+                                : billingPeriod === "monthly"
+                                  ? `${plan.priceMonthly}/${isTr ? "ay" : "mo"} — ${plan.cta}`
+                                  : `${plan.priceYearly}/${isTr ? "yıl" : "yr"} — ${plan.cta}`}
                             </span>
                             <span className="awake-pricing-btn-icon">
                               <ArrowUpRight className="awake-pricing-btn-icon-svg" aria-hidden />
@@ -327,7 +368,7 @@ export default function Pricing() {
                       </div>
                     </div>
                     <div className="awake-pricing-card-right">
-                      <h6 className="awake-pricing-features-title">{t("pricing.featuresTitle")}</h6>
+                      <h6 className="awake-pricing-features-title">{isTr ? "Özellikler" : "Features"}</h6>
                       <ul className="awake-pricing-features-list">
                         {plan.features.map((feature) => (
                           <li key={feature} className="awake-pricing-feature">

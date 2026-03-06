@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SignedImage } from "@/components/ui/signed-image";
 import { useCart } from "@/contexts/CartContext";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { getCategoryProductPath, getProductPath } from "@/lib/productUrls";
+import { formatMoney, normalizeCurrency } from "@/lib/currency";
 
 const PLACEHOLDER = "/placeholder.svg";
 
@@ -18,6 +20,7 @@ type CatalogProduct = {
   cover_image_url: string | null;
   thumbnail_url: string | null;
   price_from: number | null;
+  currency?: string | null;
   badge: string | null;
   product_code: string | null;
   product_color_variants?: Array<{ product_colors: ColorItem | null }> | null;
@@ -129,13 +132,9 @@ function CardImageCarousel({
   );
 }
 
-function formatPriceFrom(priceFrom: number | null) {
+function formatPriceFrom(priceFrom: number | null, label: string, currency: string | null | undefined) {
   if (priceFrom == null) return null;
-  try {
-    return `From $${Number(priceFrom).toFixed(2)}`;
-  } catch {
-    return `From $${priceFrom}`;
-  }
+  return `${label} ${formatMoney(Number(priceFrom), currency)}`;
 }
 
 function getColors(p: CatalogProduct): ColorItem[] {
@@ -174,9 +173,11 @@ function pickAttr(data: Record<string, unknown>, keys: string[]): string | null 
 export function CatalogProductGrid({
   products,
   designerBrandSlug = null,
+  categoryPathContext = null,
 }: {
   products: CatalogProduct[];
   designerBrandSlug?: string | null;
+  categoryPathContext?: { parentCategorySlug: string; categorySlug: string } | null;
 }) {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -188,11 +189,24 @@ export function CatalogProductGrid({
       <div className="ru-related-grid" role="list" aria-label={t("common.products")}>
         {products.map((p) => {
           const cardImages = getCardImages(p);
-          const price = formatPriceFrom(p.price_from);
+          const price = formatPriceFrom(p.price_from, t("product.priceFrom"), p.currency);
           const productQuerySuffix = designerBrandSlug
             ? `?brandSlug=${encodeURIComponent(designerBrandSlug)}`
             : "";
-          const href = p.slug ? `/product/${p.slug}${productQuerySuffix}` : `/product/id/${p.id}${productQuerySuffix}`;
+          const basePath = categoryPathContext
+            ? getCategoryProductPath({
+                slug: p.slug,
+                parentCategorySlug: categoryPathContext.parentCategorySlug,
+                categorySlug: categoryPathContext.categorySlug,
+                productCode: p.product_code,
+                id: p.id,
+              })
+            : getProductPath({
+                slug: p.slug,
+                productCode: p.product_code,
+                id: p.id,
+              });
+          const href = `${basePath}${productQuerySuffix}`;
           const colors = getColors(p);
           const sizeRange = getSizeRange(p);
           const attrs = getAttrs(p);
@@ -217,6 +231,7 @@ export function CatalogProductGrid({
                 slug: p.slug ?? null,
                 name: p.name,
                 price_from: p.price_from ?? null,
+                currency: normalizeCurrency(p.currency),
                 product_code: p.product_code ?? null,
                 cover_image_url: p.cover_image_url ?? p.thumbnail_url ?? null,
                 selectedColorName: firstColor?.name ?? undefined,

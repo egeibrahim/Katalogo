@@ -43,6 +43,25 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
+  const upsertMembership = async (
+    payload: {
+      user_id: string;
+      plan: "free" | "individual" | "brand";
+      status: "active" | "canceled";
+      pending_plan: null;
+      pending_interval: null;
+    },
+    reason: string,
+  ) => {
+    const { error } = await admin
+      .from("user_memberships")
+      .upsert(payload, { onConflict: "user_id" });
+    if (error) {
+      console.error(`membership upsert failed (${reason})`, { payload, error: error.message });
+      throw new Error(`membership upsert failed (${reason}): ${error.message}`);
+    }
+  };
+
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -50,27 +69,31 @@ Deno.serve(async (req) => {
       const plan = session.metadata?.plan?.toLowerCase();
 
       if (userId && plan && ALLOWED_PLANS.includes(plan as typeof ALLOWED_PLANS[number])) {
-        await admin.from("user_memberships").upsert(
-          { user_id: userId, plan, status: "active", pending_plan: null, pending_interval: null },
-          { onConflict: "user_id" }
+        await upsertMembership(
+          { user_id: userId, plan: plan as "individual" | "brand", status: "active", pending_plan: null, pending_interval: null },
+          "checkout.session.completed",
         );
       }
-    } else if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") {
+    } else if (
+      event.type === "customer.subscription.created" ||
+      event.type === "customer.subscription.deleted" ||
+      event.type === "customer.subscription.updated"
+    ) {
       const sub = event.data.object as Stripe.Subscription;
       const userId = sub.metadata?.user_id;
       if (!userId) return new Response(JSON.stringify({ received: true }), { status: 200, headers: { "Content-Type": "application/json" } });
 
       if (event.type === "customer.subscription.deleted" || sub.status === "canceled" || sub.status === "unpaid") {
-        await admin.from("user_memberships").upsert(
+        await upsertMembership(
           { user_id: userId, plan: "free", status: "canceled", pending_plan: null, pending_interval: null },
-          { onConflict: "user_id" }
+          event.type,
         );
-      } else if (sub.status === "active") {
+      } else if (sub.status === "active" || sub.status === "trialing") {
         const plan = sub.metadata?.plan?.toLowerCase();
         if (plan && ALLOWED_PLANS.includes(plan as typeof ALLOWED_PLANS[number])) {
-          await admin.from("user_memberships").upsert(
-            { user_id: userId, plan, status: "active", pending_plan: null, pending_interval: null },
-            { onConflict: "user_id" }
+          await upsertMembership(
+            { user_id: userId, plan: plan as "individual" | "brand", status: "active", pending_plan: null, pending_interval: null },
+            event.type,
           );
         }
       }

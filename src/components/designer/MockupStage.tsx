@@ -446,20 +446,20 @@ export function MockupStage({
   const canSaveOrCancel = isStagedMockup && Boolean(onSaveMockup) && Boolean(onCancelMockup);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white">
       {/* Preview area - ekrana sığar, zoom uygulanır */}
-      <div ref={rootContainerRef} className="flex-1 flex items-center justify-center overflow-hidden min-h-0 min-w-0">
+      <div ref={rootContainerRef} className="flex-1 flex items-center justify-center overflow-hidden min-h-0 min-w-0 bg-white">
         <div
-          className="relative w-full h-full mx-auto origin-center flex items-center justify-center"
+          className="relative w-full h-full mx-auto origin-center flex items-center justify-center bg-white"
           style={{ transform: zoom !== 100 ? `scale(${zoom / 100})` : undefined }}
         >
-          <div className="relative overflow-visible max-w-full max-h-full w-full h-full flex items-center justify-center" aria-label="Mockup preview">
+          <div className="relative overflow-visible max-w-full max-h-full w-full h-full flex items-center justify-center bg-white" aria-label="Mockup preview">
             {/* Mockup alanı; zemin kutusu yok */}
             <div
               ref={stageRef}
               id="design-canvas"
               className={cn(
-                "relative overflow-visible h-full max-h-full w-auto max-w-full",
+                "relative overflow-visible h-full max-h-full w-auto max-w-full bg-white",
                 (!mockupNaturalSize || !mockupNaturalSize.width || !mockupNaturalSize.height) && "aspect-square"
               )}
               style={
@@ -486,6 +486,7 @@ export function MockupStage({
                     alt="Mockup önizleme"
                     className="absolute inset-0 w-full h-full object-contain object-center select-none"
                     draggable={false}
+                    crossOrigin="anonymous"
                     onLoad={(e) => {
                       const img = e.currentTarget;
                       setMockupNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
@@ -543,15 +544,15 @@ export function MockupStage({
                               canDrag && "cursor-grab active:cursor-grabbing"
                             )}
                             style={{
-                              left: `${relLeft}%`,
-                              top: `${relTop}%`,
+                              left: `calc(${relLeft}% - ${w / 2}px)`,
+                              top: `calc(${relTop}% - ${h / 2}px)`,
                           width: w,
                           height: h,
                           minWidth: w,
                           maxWidth: w,
                           minHeight: h,
                           maxHeight: h,
-                          transform: `translate(-50%, -50%) rotate(${element.rotation || 0}deg) scale(${element.scaleX ?? 1}, ${element.scaleY ?? 1})`,
+                          transform: `rotate(${element.rotation || 0}deg) scale(${element.scaleX ?? 1}, ${element.scaleY ?? 1})`,
                           transformOrigin: "center center",
                         }}
                         onMouseDown={
@@ -610,12 +611,14 @@ export function MockupStage({
                                     alt=""
                                     className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none opacity-40"
                                     draggable={false}
+                                    crossOrigin="anonymous"
                                   />
                                   <SignedImage
                                     src={element.imageUrl!}
                                     alt=""
                                     className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none"
                                     draggable={false}
+                                    crossOrigin="anonymous"
                                     style={{
                                       clipPath: `inset(${cropRegion.top}% ${100 - cropRegion.left - cropRegion.width}% ${100 - cropRegion.top - cropRegion.height}% ${cropRegion.left}%)`,
                                     }}
@@ -638,6 +641,7 @@ export function MockupStage({
                               style={{ width: w, height: h, minWidth: w, maxWidth: w, minHeight: h, maxHeight: h }}
                               className="object-contain select-none pointer-events-none"
                               draggable={false}
+                              crossOrigin="anonymous"
                             />
                           )
                         ) : null}
@@ -1065,8 +1069,8 @@ export function MockupStage({
         </div>
       </div>
 
-      {/* Görünüm butonları: biraz yukarıda, taşma olmaz */}
-      <div className="shrink-0 min-h-0 min-w-0 px-3 py-2 -mt-4 flex justify-center overflow-x-auto overflow-y-auto">
+      {/* Görünüm butonları: mockup alanının altında yer alır */}
+      <div className="shrink-0 z-10 px-3 pb-4 pt-2 flex justify-center overflow-x-auto bg-white border-t border-border">
         <ViewSwitcher views={views} activeViewId={activeViewId} onViewChange={onViewChange} />
       </div>
     </div>

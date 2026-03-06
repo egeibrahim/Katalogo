@@ -112,7 +112,6 @@ export const FULFILLMENT_COUNTRIES = [
   "Iraq",
   "Ireland",
   "Isle of Man",
-  "Israel",
   "Italy",
   "Ivory Coast",
   "Jamaica",
@@ -236,7 +235,7 @@ export const FULFILLMENT_COUNTRIES = [
   "Tonga",
   "Trinidad and Tobago",
   "Tunisia",
-  "Turkey",
+  "Türkiye",
   "Turkmenistan",
   "Turks and Caicos Islands",
   "Tuvalu",
@@ -1634,16 +1633,6 @@ export const FULFILLMENT_CITIES_BY_COUNTRY: Record<string, string[]> = {
   ],
   "Isle of Man": [
     "Douglas",
-    "Other",
-  ],
-  "Israel": [
-    "Ariel",
-    "Beersheba",
-    "Haifa",
-    "Jerusalem",
-    "Nazareth",
-    "Ramla",
-    "Tel Aviv",
     "Other",
   ],
   "Italy": [
@@ -3293,7 +3282,7 @@ export const FULFILLMENT_CITIES_BY_COUNTRY: Record<string, string[]> = {
     "Zaghouan",
     "Other",
   ],
-  "Turkey": [
+  "Türkiye": [
     "Adana",
     "Adapazarı",
     "Adıyaman",

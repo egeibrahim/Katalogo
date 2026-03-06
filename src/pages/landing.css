@@ -509,6 +509,16 @@
   padding-right: 1rem;
 }
 
+.landing-footer-logo-wrap {
+  margin-bottom: 2rem;
+}
+
+.landing-footer-logo-wrap .logo-img {
+  height: 32px;
+  width: auto;
+  display: block;
+}
+
 @media (min-width: 640px) {
   .landing-footer-inner {
     padding-left: 1.5rem;

@@ -10,6 +10,8 @@ interface ColorPaletteProps {
   onColorSelect: (colorId: string, hexCode: string) => void;
   onColorToggle: (colorId: string, hexCode: string) => void;
   selectedProductId?: string;
+  /** When set, only these color IDs are shown (e.g. print area colors). Otherwise product colors from product_color_variants. */
+  colorIdsToShow?: string[];
 }
 
 export function ColorPalette({
@@ -18,31 +20,36 @@ export function ColorPalette({
   onColorSelect,
   onColorToggle,
   selectedProductId,
+  colorIdsToShow,
 }: ColorPaletteProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [colors, setColors] = useState<ProductColor[]>([]);
 
   const fetchColors = useCallback(async () => {
-    // Tapstitch-like behavior: CatalogBar shows colors assigned to the selected product,
-    // but we also ensure currently-selected ids are visible immediately.
-    const idsToShow = Array.from(
-      new Set([...(selectedColorIds ?? []), ...(selectedProductId ? [] : [])])
-    ).filter(Boolean);
+    let uniqIds: string[];
 
-    if (selectedProductId) {
+    if (colorIdsToShow != null && colorIdsToShow.length > 0) {
+      // Only show colors that are in the given list (e.g. print area–assigned colors)
+      uniqIds = Array.from(new Set([...colorIdsToShow, selectedColorId].filter(Boolean)));
+    } else if (selectedProductId) {
+      // Fallback: product colors from product_color_variants
+      const idsToShow = Array.from(new Set([...(selectedColorIds ?? []), selectedColorId].filter(Boolean)));
       const { data: variants, error: variantError } = await supabase
         .from("product_color_variants")
         .select("color_id")
         .eq("product_id", selectedProductId);
 
-      if (!variantError) {
-        (variants ?? []).forEach((v) => {
+      if (!variantError && variants?.length) {
+        variants.forEach((v) => {
           if (v.color_id) idsToShow.push(v.color_id);
         });
       }
+      uniqIds = Array.from(new Set(idsToShow));
+    } else {
+      setColors([]);
+      return;
     }
 
-    const uniqIds = Array.from(new Set(idsToShow));
     if (uniqIds.length === 0) {
       setColors([]);
       return;
@@ -61,7 +68,7 @@ export function ColorPalette({
     }
 
     setColors([]);
-  }, [selectedProductId, selectedColorIds]);
+  }, [selectedProductId, selectedColorIds, colorIdsToShow, selectedColorId]);
 
   useEffect(() => {
     void fetchColors();
@@ -105,12 +112,13 @@ export function ColorPalette({
                 <TooltipTrigger asChild>
                   <button
                     className={
-                      "relative h-6 w-6 rounded-full shrink-0 border transition-colors " +
+                      "relative shrink-0 overflow-hidden transition-colors " +
+                      "h-7 w-7 min-h-[28px] min-w-[28px] rounded-full " +
                       (isActive
-                        ? "ring-2 ring-primary border-primary"
+                        ? "border-2 border-black shadow-[inset_0_0_0_1px_#4b5563]"
                         : isSelected
-                          ? "ring-1 ring-primary/50 border-primary/50"
-                          : "border-border hover:border-foreground/50")
+                          ? "border-2 border-black/70 shadow-[inset_0_0_0_1px_rgba(75,85,99,0.7)]"
+                          : "border border-border hover:border-foreground/50")
                     }
                     style={{ backgroundColor: color.hex_code }}
                     onClick={() => onColorSelect(color.id, color.hex_code)}
@@ -122,7 +130,7 @@ export function ColorPalette({
                     aria-label={color.name}
                     title={color.name}
                   >
-                    {isSelected ? (
+                    {isSelected && !isActive ? (
                       <Check
                         className={
                           "absolute inset-0 m-auto h-3.5 w-3.5 " +

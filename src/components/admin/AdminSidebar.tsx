@@ -40,6 +40,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { title: "admin.dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
@@ -67,7 +68,7 @@ export function AdminSidebar() {
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">
+    <Sidebar className={cn("bg-white", collapsed ? "w-14" : "w-60")} collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <SidebarTrigger />
       </SidebarHeader>

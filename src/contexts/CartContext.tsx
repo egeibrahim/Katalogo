@@ -17,6 +17,7 @@ export type CartItem = {
   slug: string | null;
   name: string;
   price_from: number | null;
+  currency?: string | null;
   product_code: string | null;
   cover_image_url: string | null;
   quantity: number;
@@ -34,6 +35,8 @@ export type CartItem = {
   selectedPlacements?: Array<{ name: string; price: string }>;
   /** Tasarım verisi (Designer'dan "Sepete ekle" ile eklenen); view id -> öğe listesi. */
   designData?: Record<string, unknown[]>;
+  /** Oluşturulan mockup görselleri (view id -> data URL veya URL) */
+  mockupUrls?: Record<string, string>;
   /** Tasarım adı (opsiyonel). */
   designName?: string | null;
 }

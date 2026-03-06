@@ -112,6 +112,7 @@ export default function AdminCategories() {
   const [subName, setSubName] = useState("");
   const [subSlug, setSubSlug] = useState("");
   const [subDescription, setSubDescription] = useState("");
+  const [subCoverUrl, setSubCoverUrl] = useState<string>("");
 
   const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({});
 
@@ -232,6 +233,7 @@ export default function AdminCategories() {
         name: parsed.name,
         slug: parsed.slug,
         description: parsed.description ?? null,
+        cover_image_url: subCoverUrl || null,
         parent_category_id: subParentId,
         sort_order: nextSortOrder,
         is_active: true,
@@ -245,6 +247,7 @@ export default function AdminCategories() {
       setSubName("");
       setSubSlug("");
       setSubDescription("");
+      setSubCoverUrl("");
       qc.invalidateQueries({ queryKey: ["admin", "categories"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed to create subcategory"),
@@ -328,6 +331,7 @@ export default function AdminCategories() {
                   setSubName("");
                   setSubSlug("");
                   setSubDescription("");
+                  setSubCoverUrl("");
                 }
               }}
             >
@@ -376,6 +380,42 @@ export default function AdminCategories() {
                   <div className="space-y-2">
                     <Label>Description</Label>
                     <Textarea value={subDescription} onChange={(e) => setSubDescription(e.target.value)} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Cover image</Label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const path = `categories/${Date.now()}-${sanitizeStorageFileName(file.name)}`;
+                        const url = await uploadPublicFile({ bucket: "product-mockups", path, file });
+                        setSubCoverUrl(url);
+                        toast.success("Uploaded");
+                      }}
+                    />
+                    {subCoverUrl ? (
+                      <div className="mt-2 relative overflow-hidden rounded-md border">
+                        <img
+                          src={subCoverUrl}
+                          alt="Subcategory cover"
+                          loading="lazy"
+                          className="h-64 w-full object-contain"
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="icon"
+                          className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-md"
+                          aria-label="Remove cover"
+                          onClick={() => setSubCoverUrl("")}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 

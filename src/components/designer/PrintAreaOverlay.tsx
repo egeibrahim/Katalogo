@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type PrintArea = {
@@ -36,6 +36,7 @@ function applyCenterSnap(area: PrintArea): PrintArea {
 }
 
 export function PrintAreaOverlay({ value, onChange, disabled, dimensionsCm }: Props) {
+  const overlayRef = useRef<HTMLDivElement | null>(null);
   const [mode, setMode] = useState<
     | null
     | { type: "drag"; startX: number; startY: number; start: PrintArea }
@@ -45,7 +46,7 @@ export function PrintAreaOverlay({ value, onChange, disabled, dimensionsCm }: Pr
   const startDrag = useCallback(
     (e: React.PointerEvent) => {
       if (disabled) return;
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      e.preventDefault();
       setMode({ type: "drag", startX: e.clientX, startY: e.clientY, start: value });
     },
     [disabled, value],
@@ -55,24 +56,24 @@ export function PrintAreaOverlay({ value, onChange, disabled, dimensionsCm }: Pr
     (handle: "nw" | "ne" | "sw" | "se") => (e: React.PointerEvent) => {
       if (disabled) return;
       e.stopPropagation();
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      e.preventDefault();
       setMode({ type: "resize", handle, startX: e.clientX, startY: e.clientY, start: value });
     },
     [disabled, value],
   );
 
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
+  const applyPointerMove = useCallback(
+    (clientX: number, clientY: number) => {
       if (!mode) return;
 
       // This overlay lives in a % based coordinate system (0-100).
       // We'll estimate delta% from the element's rendered size.
-      const host = (e.currentTarget as HTMLElement).parentElement as HTMLElement | null;
+      const host = overlayRef.current?.parentElement as HTMLElement | null;
       if (!host) return;
 
       const rect = host.getBoundingClientRect();
-      const dxPct = ((e.clientX - mode.startX) / rect.width) * 100;
-      const dyPct = ((e.clientY - mode.startY) / rect.height) * 100;
+      const dxPct = ((clientX - mode.startX) / rect.width) * 100;
+      const dyPct = ((clientY - mode.startY) / rect.height) * 100;
 
       if (mode.type === "drag") {
         const raw: PrintArea = {
@@ -119,10 +120,26 @@ export function PrintAreaOverlay({ value, onChange, disabled, dimensionsCm }: Pr
     [mode, onChange],
   );
 
-  const onPointerUp = useCallback(() => {
-    if (mode?.type === "drag") onChange(applyCenterSnap(value));
-    setMode(null);
-  }, [mode, value, onChange]);
+  useEffect(() => {
+    if (!mode) return;
+
+    const handleMove = (event: PointerEvent) => {
+      event.preventDefault();
+      applyPointerMove(event.clientX, event.clientY);
+    };
+
+    const handleUp = () => {
+      if (mode?.type === "drag") onChange(applyCenterSnap(value));
+      setMode(null);
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+  }, [mode, applyPointerMove, onChange, value]);
 
   const style = useMemo(
     () => ({
@@ -138,14 +155,13 @@ export function PrintAreaOverlay({ value, onChange, disabled, dimensionsCm }: Pr
 
   return (
     <div
+      ref={overlayRef}
       className={cn(
         "absolute rounded-md border border-primary/70 bg-primary/10",
         disabled ? "opacity-60" : "cursor-move",
       )}
       style={style}
       onPointerDown={startDrag}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
     >
       {/* Anlık ölçü etiketleri (köşelerde) */}
       <div className="absolute left-1 top-1 pointer-events-none rounded bg-background/90 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-foreground shadow-sm">

@@ -13,19 +13,281 @@ import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 type ColorOption = { id: string; name: string; hex_code: string };
 
-const fallbackUnitPriceTiers: UnitPriceTier[] = [
-  { min_qty: 1, max_qty: 5, unit_price: 2.99, currency: "USD", sort_order: 0 },
-  { min_qty: 6, max_qty: 29, unit_price: 2.85, currency: "USD", sort_order: 1 },
-  { min_qty: 30, max_qty: 99, unit_price: 2.7, currency: "USD", sort_order: 2 },
-  { min_qty: 100, max_qty: null, unit_price: 2.4, currency: "USD", sort_order: 3 },
-];
-
 const placements = [
   { title: "Front" },
   { title: "Back" },
   { title: "Left Sleeve" },
   { title: "Right Sleeve" },
 ];
+
+const COUNTRY_FLAG_MAP: Record<string, string> = {
+  Afghanistan: "AF",
+  "Aland Islands": "AX",
+  Albania: "AL",
+  Algeria: "DZ",
+  "American Samoa": "AS",
+  Andorra: "AD",
+  Angola: "AO",
+  Anguilla: "AI",
+  Antarctica: "AQ",
+  "Antigua and Barbuda": "AG",
+  Argentina: "AR",
+  Armenia: "AM",
+  Aruba: "AW",
+  Australia: "AU",
+  Austria: "AT",
+  Azerbaijan: "AZ",
+  Bahamas: "BS",
+  Bahrain: "BH",
+  Bangladesh: "BD",
+  Barbados: "BB",
+  Belarus: "BY",
+  Belgium: "BE",
+  Belize: "BZ",
+  Benin: "BJ",
+  Bermuda: "BM",
+  Bhutan: "BT",
+  Bolivia: "BO",
+  "Bonaire, Saint Eustatius and Saba": "BQ",
+  "Bosnia and Herzegovina": "BA",
+  Botswana: "BW",
+  "Bouvet Island": "BV",
+  Brazil: "BR",
+  "British Indian Ocean Territory": "IO",
+  "British Virgin Islands": "VG",
+  Brunei: "BN",
+  Bulgaria: "BG",
+  "Burkina Faso": "BF",
+  Burundi: "BI",
+  "Cabo Verde": "CV",
+  Cambodia: "KH",
+  Cameroon: "CM",
+  Canada: "CA",
+  "Cayman Islands": "KY",
+  "Central African Republic": "CF",
+  Chad: "TD",
+  Chile: "CL",
+  China: "CN",
+  "Christmas Island": "CX",
+  "Cocos Islands": "CC",
+  Colombia: "CO",
+  Comoros: "KM",
+  "Cook Islands": "CK",
+  "Costa Rica": "CR",
+  Croatia: "HR",
+  Cuba: "CU",
+  Curacao: "CW",
+  Cyprus: "CY",
+  Czechia: "CZ",
+  "Democratic Republic of the Congo": "CD",
+  Denmark: "DK",
+  Djibouti: "DJ",
+  Dominica: "DM",
+  "Dominican Republic": "DO",
+  Ecuador: "EC",
+  Egypt: "EG",
+  "El Salvador": "SV",
+  "Equatorial Guinea": "GQ",
+  Eritrea: "ER",
+  Estonia: "EE",
+  Eswatini: "SZ",
+  Ethiopia: "ET",
+  "Falkland Islands": "FK",
+  "Faroe Islands": "FO",
+  Fiji: "FJ",
+  Finland: "FI",
+  France: "FR",
+  "French Guiana": "GF",
+  "French Polynesia": "PF",
+  "French Southern Territories": "TF",
+  Gabon: "GA",
+  Gambia: "GM",
+  Georgia: "GE",
+  Germany: "DE",
+  Ghana: "GH",
+  Gibraltar: "GI",
+  Greece: "GR",
+  Greenland: "GL",
+  Grenada: "GD",
+  Guadeloupe: "GP",
+  Guam: "GU",
+  Guatemala: "GT",
+  Guernsey: "GG",
+  Guinea: "GN",
+  "Guinea-Bissau": "GW",
+  Guyana: "GY",
+  Haiti: "HT",
+  "Heard Island and McDonald Islands": "HM",
+  Honduras: "HN",
+  "Hong Kong": "HK",
+  Hungary: "HU",
+  Iceland: "IS",
+  India: "IN",
+  Indonesia: "ID",
+  Iran: "IR",
+  Iraq: "IQ",
+  Ireland: "IE",
+  "Isle of Man": "IM",
+  Italy: "IT",
+  "Ivory Coast": "CI",
+  Jamaica: "JM",
+  Japan: "JP",
+  Jersey: "JE",
+  Jordan: "JO",
+  Kazakhstan: "KZ",
+  Kenya: "KE",
+  Kiribati: "KI",
+  Kosovo: "XK",
+  Kuwait: "KW",
+  Kyrgyzstan: "KG",
+  Laos: "LA",
+  Latvia: "LV",
+  Lebanon: "LB",
+  Lesotho: "LS",
+  Liberia: "LR",
+  Libya: "LY",
+  Liechtenstein: "LI",
+  Lithuania: "LT",
+  Luxembourg: "LU",
+  Macao: "MO",
+  Madagascar: "MG",
+  Malawi: "MW",
+  Malaysia: "MY",
+  Maldives: "MV",
+  Mali: "ML",
+  Malta: "MT",
+  "Marshall Islands": "MH",
+  Martinique: "MQ",
+  Mauritania: "MR",
+  Mauritius: "MU",
+  Mayotte: "YT",
+  Mexico: "MX",
+  Micronesia: "FM",
+  Moldova: "MD",
+  Monaco: "MC",
+  Mongolia: "MN",
+  Montenegro: "ME",
+  Montserrat: "MS",
+  Morocco: "MA",
+  Mozambique: "MZ",
+  Myanmar: "MM",
+  Namibia: "NA",
+  Nauru: "NR",
+  Nepal: "NP",
+  "Netherlands Antilles": "AN",
+  "New Caledonia": "NC",
+  "New Zealand": "NZ",
+  Nicaragua: "NI",
+  Niger: "NE",
+  Nigeria: "NG",
+  Niue: "NU",
+  "Norfolk Island": "NF",
+  "North Korea": "KP",
+  "North Macedonia": "MK",
+  "Northern Mariana Islands": "MP",
+  Norway: "NO",
+  Oman: "OM",
+  Pakistan: "PK",
+  Palau: "PW",
+  "Palestinian Territory": "PS",
+  Panama: "PA",
+  "Papua New Guinea": "PG",
+  Paraguay: "PY",
+  Peru: "PE",
+  Philippines: "PH",
+  Pitcairn: "PN",
+  Poland: "PL",
+  Portugal: "PT",
+  "Puerto Rico": "PR",
+  Qatar: "QA",
+  "Republic of the Congo": "CG",
+  Reunion: "RE",
+  Romania: "RO",
+  Russia: "RU",
+  Rwanda: "RW",
+  "Saint Barthelemy": "BL",
+  "Saint Helena": "SH",
+  "Saint Kitts and Nevis": "KN",
+  "Saint Lucia": "LC",
+  "Saint Martin": "MF",
+  "Saint Pierre and Miquelon": "PM",
+  "Saint Vincent and the Grenadines": "VC",
+  Samoa: "WS",
+  "San Marino": "SM",
+  "Sao Tome and Principe": "ST",
+  "Saudi Arabia": "SA",
+  Senegal: "SN",
+  Serbia: "RS",
+  "Serbia and Montenegro": "CS",
+  Seychelles: "SC",
+  "Sierra Leone": "SL",
+  Singapore: "SG",
+  "Sint Maarten": "SX",
+  Slovakia: "SK",
+  Slovenia: "SI",
+  "Solomon Islands": "SB",
+  Somalia: "SO",
+  "South Africa": "ZA",
+  "South Georgia and the South Sandwich Islands": "GS",
+  "South Korea": "KR",
+  "South Sudan": "SS",
+  Spain: "ES",
+  "Sri Lanka": "LK",
+  Sudan: "SD",
+  Suriname: "SR",
+  "Svalbard and Jan Mayen": "SJ",
+  Sweden: "SE",
+  Switzerland: "CH",
+  Syria: "SY",
+  Taiwan: "TW",
+  Tajikistan: "TJ",
+  Tanzania: "TZ",
+  Thailand: "TH",
+  "The Netherlands": "NL",
+  "Timor Leste": "TL",
+  Togo: "TG",
+  Tokelau: "TK",
+  Tonga: "TO",
+  "Trinidad and Tobago": "TT",
+  Tunisia: "TN",
+  Türkiye: "TR",
+  Turkmenistan: "TM",
+  "Turks and Caicos Islands": "TC",
+  Tuvalu: "TV",
+  "U.S. Virgin Islands": "VI",
+  Uganda: "UG",
+  Ukraine: "UA",
+  "United Arab Emirates": "AE",
+  "United Kingdom": "GB",
+  "United States": "US",
+  "United States Minor Outlying Islands": "UM",
+  Uruguay: "UY",
+  Uzbekistan: "UZ",
+  Vanuatu: "VU",
+  Vatican: "VA",
+  Venezuela: "VE",
+  Vietnam: "VN",
+  "Wallis and Futuna": "WF",
+  "Western Sahara": "EH",
+  Yemen: "YE",
+  Zambia: "ZM",
+  Zimbabwe: "ZW",
+};
+
+function isoCodeToFlag(isoCode: string): string {
+  if (!isoCode || isoCode.length !== 2) return "";
+  const code = isoCode.toUpperCase();
+  const A = 0x1f1e6;
+  const a = "A".charCodeAt(0);
+  const first = A + (code.charCodeAt(0) - a);
+  const second = A + (code.charCodeAt(1) - a);
+  return String.fromCodePoint(first) + String.fromCodePoint(second);
+}
+
+export function getCountryFlag(name: string): string {
+  const iso = COUNTRY_FLAG_MAP[name];
+  return iso ? isoCodeToFlag(iso) : "";
+}
 
 /** Values that are treated as "no data" on the product view (legacy defaults / placeholders). */
 const SHIPPING_PLACEHOLDER_VALUES = new Set([
@@ -139,6 +401,7 @@ export function ProductConfigurator({
   unitPriceTiers,
   onQuantityChange,
   onAddToCart,
+  productCurrency = "USD",
   maxQuantity = null,
   topSlot,
   blockOrder,
@@ -148,6 +411,7 @@ export function ProductConfigurator({
   designNowViewId = null,
   designerBrandSlug = null,
   addToCartRef,
+  primaryCta = "design_now",
 }: {
   productId?: string;
   productName: string;
@@ -169,8 +433,13 @@ export function ProductConfigurator({
   onAddToCart?: (
     placementFeePerItem?: number,
     unitPriceFromTier?: number,
-    details?: { selectedTechnique?: string; selectedPlacements?: Array<{ name: string; price: string }> }
+    details?: {
+      selectedTechnique?: string;
+      selectedPlacements?: Array<{ name: string; price: string }>;
+      currency?: string;
+    }
   ) => void;
+  productCurrency?: string;
   /** Max allowed quantity (e.g. remaining stock). null = no limit. 0 = out of stock. */
   maxQuantity?: number | null;
   topSlot?: React.ReactNode;
@@ -187,6 +456,8 @@ export function ProductConfigurator({
   designerBrandSlug?: string | null;
   /** Ref to expose addToCartWithCurrentSelections for Design Now (e.g. header button adds to cart then navigates). */
   addToCartRef?: React.MutableRefObject<{ addToCartWithCurrentSelections: () => void } | null>;
+  /** "design_now" = Hemen Tasarla (designer), "request_quote" = Teklif Al (sepete ekle + sepet). */
+  primaryCta?: "design_now" | "request_quote";
 }) {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -215,7 +486,7 @@ export function ProductConfigurator({
   const [deliverTo, setDeliverTo] = React.useState(() => {
     const r = region?.trim();
     if (r && (deliverToCountries as readonly string[]).includes(r)) return r;
-    return "Turkey";
+    return "Türkiye";
   });
   const [deliverToCity, setDeliverToCity] = React.useState("");
 
@@ -230,7 +501,7 @@ export function ProductConfigurator({
   }, [region, deliverToCountries]);
 
   React.useEffect(() => {
-    if (!(deliverToCountries as readonly string[]).includes(deliverTo)) setDeliverTo("Turkey");
+    if (!(deliverToCountries as readonly string[]).includes(deliverTo)) setDeliverTo("Türkiye");
   }, [deliverTo, deliverToCountries]);
 
   React.useEffect(() => {
@@ -343,12 +614,13 @@ export function ProductConfigurator({
     });
   }, [orderedBlocks, hasAnyShippingData]);
 
-  const tiersForQuantity = unitPriceTiers?.length ? unitPriceTiers : fallbackUnitPriceTiers;
-  const effectiveTier = React.useMemo(
-    () => getUnitPriceForQuantity(Math.max(1, quantity), tiersForQuantity),
-    [quantity, tiersForQuantity]
-  );
-  const stickyPriceFormatted = formatUnitPrice(effectiveTier.unitPrice, effectiveTier.currency);
+  const hasUnitPriceTiers = (unitPriceTiers?.length ?? 0) > 0;
+  const tiersForQuantity = React.useMemo(() => (hasUnitPriceTiers ? unitPriceTiers ?? [] : []), [hasUnitPriceTiers, unitPriceTiers]);
+  const effectiveTier = React.useMemo(() => {
+    if (!hasUnitPriceTiers) return null;
+    return getUnitPriceForQuantity(Math.max(1, quantity), tiersForQuantity);
+  }, [hasUnitPriceTiers, quantity, tiersForQuantity]);
+  const stickyPriceFormatted = effectiveTier ? formatUnitPrice(effectiveTier.unitPrice, effectiveTier.currency) : null;
 
   React.useEffect(() => {
     if (!techniqueOptions.length) return;
@@ -373,16 +645,21 @@ export function ProductConfigurator({
         .filter((p) => (p.name ?? "").trim())
         .map((p) => {
           const price =
-            (technique && p.pricesByTechnique?.[technique] != null)
+            technique && p.pricesByTechnique?.[technique] != null
               ? String(p.pricesByTechnique[technique]).trim()
-              : (p.price != null ? String(p.price).trim() : (p.pricesByTechnique?.[""] != null ? String(p.pricesByTechnique[""]).trim() : ""));
+              : p.price != null
+              ? String(p.price).trim()
+              : p.pricesByTechnique?.[""] != null
+              ? String(p.pricesByTechnique[""]).trim()
+              : "";
           return { name: (p.name ?? "").trim(), price };
         });
     }
     if (placementOptions && placementOptions.length > 0) {
       return placementOptions.filter((p) => (p.name ?? "").trim());
     }
-    return placements.map((p) => ({ name: p.title, price: "" }));
+    // Ürün print area tanımlı değilse, sabit varsayılanları gösterme; boş liste döndür.
+    return [];
   }, [printAreaViews, placementOptions, selectedTechnique]);
 
   const [selectedPlacementIndices, setSelectedPlacementIndices] = React.useState<number[]>([]);
@@ -412,7 +689,7 @@ export function ProductConfigurator({
     );
   }, [selectedPlacementIndices, placementsList]);
 
-  const effectiveUnitPrice = effectiveTier.unitPrice + placementFeePerItem;
+  const effectiveUnitPrice = (effectiveTier?.unitPrice ?? 0) + placementFeePerItem;
 
   const addToCartWithCurrentSelections = React.useCallback(() => {
     if (typeof onAddToCart !== "function") return;
@@ -420,11 +697,12 @@ export function ProductConfigurator({
       .map((i) => placementsList[i])
       .filter(Boolean)
       .map((p) => ({ name: p.name || "", price: p.price || "" }));
-    onAddToCart(placementFeePerItem, effectiveTier.unitPrice, {
+    onAddToCart(placementFeePerItem, effectiveTier?.unitPrice ?? 0, {
       selectedTechnique: selectedTechnique || undefined,
       selectedPlacements: selectedPlacements.length ? selectedPlacements : undefined,
+      currency: productCurrency,
     });
-  }, [onAddToCart, placementFeePerItem, effectiveTier.unitPrice, selectedTechnique, selectedPlacementIndices, placementsList]);
+  }, [onAddToCart, placementFeePerItem, effectiveTier?.unitPrice, selectedTechnique, selectedPlacementIndices, placementsList, productCurrency]);
 
   const handleDesignNow = React.useCallback(() => {
     addToCartWithCurrentSelections();
@@ -438,6 +716,11 @@ export function ProductConfigurator({
     if (designerBrandSlug) params.set("brandSlug", designerBrandSlug);
     navigate(`/designer?${params.toString()}`);
   }, [navigate, productId, designNowViewId, selectedColorId, designerBrandSlug, addToCartWithCurrentSelections]);
+
+  const handleRequestQuote = React.useCallback(() => {
+    addToCartWithCurrentSelections();
+    navigate("/cart");
+  }, [navigate, addToCartWithCurrentSelections]);
 
   React.useEffect(() => {
     if (addToCartRef) {
@@ -481,8 +764,46 @@ export function ProductConfigurator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sizes.join("|"), selectedSize]);
 
+  const canAdjustQuantity = typeof onQuantityChange === "function";
+  const canAddToCart = typeof onAddToCart === "function";
+  const quantityInputDisabled = !canAdjustQuantity || maxQuantity === 0;
+
+  const clampQuantity = React.useCallback(
+    (value: number) => {
+      if (Number.isNaN(value) || value < 1) return 1;
+      if (maxQuantity != null) {
+        if (maxQuantity < 1) return 1;
+        return Math.min(value, maxQuantity);
+      }
+      return value;
+    },
+    [maxQuantity],
+  );
+
+  const commitQuantityInput = React.useCallback(() => {
+    if (!canAdjustQuantity || maxQuantity === 0) {
+      setQuantityInputLocal(null);
+      return;
+    }
+    const raw = (quantityInputLocal ?? String(quantity)).trim();
+    const parsed = raw === "" ? quantity : parseInt(raw, 10);
+    const next = clampQuantity(parsed);
+    onQuantityChange?.(next);
+    setQuantityInputLocal(null);
+  }, [canAdjustQuantity, clampQuantity, maxQuantity, onQuantityChange, quantity, quantityInputLocal]);
+
+  const adjustQuantityBy = React.useCallback(
+    (delta: number) => {
+      if (!canAdjustQuantity || maxQuantity === 0) return;
+      const next = clampQuantity(quantity + delta);
+      onQuantityChange?.(next);
+      setQuantityInputLocal(null);
+    },
+    [canAdjustQuantity, clampQuantity, maxQuantity, onQuantityChange, quantity],
+  );
+
   return (
-    <section className="ts-container ru-section" aria-label="Product configuration">
+    <section className="ts-container ru-section" aria-label={t("product.configTitle")}>
       <div className="ru-config-grid">
         <div className="ru-config-col">
           {topSlot ? topSlot : null}
@@ -520,7 +841,7 @@ export function ProductConfigurator({
                 <h2 className="ru-h2">{t("common.size")}</h2>
               </div>
 
-              <div className="ru-size-row" role="list" aria-label="Sizes">
+              <div className="ru-size-row" role="list" aria-label={t("product.sizes")}>
                 {sizes.map((s) => (
                   <button
                     key={s}
@@ -544,7 +865,7 @@ export function ProductConfigurator({
                   className="ru-outline-pill inline-flex items-center gap-1.5 text-sm font-medium"
                   aria-expanded={sizeGuideOpen}
                 >
-                  {t("common.size")} Guide
+                  {t("product.sizeGuide")}
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${sizeGuideOpen ? "rotate-180" : ""}`}
                     aria-hidden
@@ -561,7 +882,7 @@ export function ProductConfigurator({
                       onSignedUrl={(url) => setSizeGuideImgSrc(url)}
                     />
                   ) : (
-                    <p className="text-sm text-muted-foreground">No size guide image has been set for this product.</p>
+                    <p className="text-sm text-muted-foreground">{t("product.noSizeGuideImage")}</p>
                   )}
                 </div>
               ) : null}
@@ -570,119 +891,135 @@ export function ProductConfigurator({
 
           {visibleBlocks.map((block) => {
             if (block === "unit_price") {
+              if (!hasUnitPriceTiers) return null;
               return (
                 <div key={block} className="ru-block">
                   <div className="ru-block-head">
                     <h2 className="ru-h2">{t("cart.quote.unitPrice")}</h2>
                   </div>
                   <UnitPriceTiers
-                    tiers={unitPriceTiers?.length ? unitPriceTiers : fallbackUnitPriceTiers}
-                    activeIndex={effectiveTier.activeIndex}
-                    currency={effectiveTier.currency}
+                    tiers={unitPriceTiers ?? []}
+                    activeIndex={effectiveTier?.activeIndex ?? 0}
+                    currency={effectiveTier?.currency}
                   />
                 </div>
               );
             }
 
             if (block === "customization_options") {
+              const hasTechniqueOptions = techniqueOptions.length > 0;
+              const hasPlacements = placementsList.length > 0;
+              if (!hasTechniqueOptions && !hasPlacements) return null;
+
               return (
                 <div key={block} className="ru-block">
                   <div className="ru-block-head">
-                    <h2 className="ru-h2">Customization Options</h2>
+                    <h2 className="ru-h2">{t("product.customizationOptions")}</h2>
                   </div>
 
-                  <div className="ru-subblock">
-                    <h3 className="ru-h3">Technique</h3>
-                    <div className="ru-tech-list" role="list">
-                      {(techniqueOptions.length ? techniqueOptions : ["DTG", "DTF"]).map((t) => {
-                        const isActive = selectedTechnique ? selectedTechnique === t : t === (techniqueOptions[0] ?? t);
-                        const desc =
-                          t === "DTG"
-                            ? "Direct to Garment (DTG) printing applies eco-friendly, water-based inks directly onto fabric. It is ideal for vibrantly colored designs and intricate graphics. The technique provides a soft feel as the ink is absorbed into the fabric."
-                            : t === "DTF"
-                            ? "Direct to Film (DTF) printing allows for pre-printed designs to be heat-transferred onto fabrics. It is ideal for complex and photorealistic images. It is not advised for larger designs because the film layer applied is not breathable."
-                            : null;
+                  {hasTechniqueOptions ? (
+                    <div className="ru-subblock">
+                      <h3 className="ru-h3">{t("cart.quote.technique")}</h3>
+                      <div className="ru-tech-list" role="list">
+                        {techniqueOptions.map((tech) => {
+                          const isActive = selectedTechnique ? selectedTechnique === tech : tech === techniqueOptions[0];
+                          const desc =
+                            tech === "DTG"
+                              ? "Direct to Garment (DTG) printing applies eco-friendly, water-based inks directly onto fabric. It is ideal for vibrantly colored designs and intricate graphics. The technique provides a soft feel as the ink is absorbed into the fabric."
+                              : tech === "DTF"
+                              ? "Direct to Film (DTF) printing allows for pre-printed designs to be heat-transferred onto fabrics. It is ideal for complex and photorealistic images. It is not advised for larger designs because the film layer applied is not breathable."
+                              : null;
 
-                        return (
-                          <button
-                            key={t}
-                            type="button"
-                            className={isActive ? "ru-tech-item ru-tech-item--active" : "ru-tech-item"}
-                            onClick={() => setSelectedTechnique(t)}
-                            aria-pressed={isActive}
-                          >
-                            <div className="ru-tech-name">{t}</div>
-                            {desc ? <div className="ru-tech-desc">{desc}</div> : null}
-                          </button>
-                        );
-                      })}
+                          return (
+                            <button
+                              key={tech}
+                              type="button"
+                              className={isActive ? "ru-tech-item ru-tech-item--active" : "ru-tech-item"}
+                              onClick={() => setSelectedTechnique(tech)}
+                              aria-pressed={isActive}
+                            >
+                              <div className="ru-tech-name">{tech}</div>
+                              {desc ? <div className="ru-tech-desc">{desc}</div> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
 
-                  <div className="ru-subblock">
-                    <h3 className="ru-h3">Where would you like your design to appear?</h3>
-                    <div className="ru-placement-grid" aria-label="Print placements">
-                      {placementsList.map((p, i) => {
-                        const isSelected = selectedPlacementIndices.includes(i);
-                        return (
-                          <button
-                            key={i}
-                            type="button"
-                            className={
-                              isSelected ? "ru-placement-card ru-placement-card--active" : "ru-placement-card"
-                            }
-                            onClick={() => {
-                              setSelectedPlacementIndices((prev) =>
-                                prev.includes(i) ? prev.filter((idx) => idx !== i) : [...prev, i]
-                              );
-                            }}
-                            aria-pressed={isSelected}
-                          >
-                            <p className="ru-placement-title">{p.name || "\u00A0"}</p>
-                            <p className="ru-placement-meta">
-                              <span className="ru-placement-price">
-                                {formatPlacementPriceDisplay(p.price ?? stickyPriceFormatted)}
-                              </span>
-                            </p>
-                          </button>
-                        );
-                      })}
+                  {hasPlacements ? (
+                    <div className="ru-subblock">
+                      <h3 className="ru-h3">{t("product.designPlacementQuestion")}</h3>
+                      <div className="ru-placement-grid" aria-label={t("product.printPlacements")}>
+                        {placementsList.map((p, i) => {
+                          const isSelected = selectedPlacementIndices.includes(i);
+                          return (
+                            <button
+                              key={i}
+                              type="button"
+                              className={
+                                isSelected ? "ru-placement-card ru-placement-card--active" : "ru-placement-card"
+                              }
+                              onClick={() => {
+                                setSelectedPlacementIndices((prev) =>
+                                  prev.includes(i) ? prev.filter((idx) => idx !== i) : [...prev, i]
+                                );
+                              }}
+                              aria-pressed={isSelected}
+                            >
+                              <p className="ru-placement-title">{p.name || "\u00A0"}</p>
+                              <p className="ru-placement-meta">
+                                <span className="ru-placement-price">
+                                  {formatPlacementPriceDisplay(p.price ?? stickyPriceFormatted)}
+                                </span>
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               );
             }
 
             if (block === "fulfillment") {
+              const hasFulfillmentLocation = Boolean(
+                (fulfillmentFrom && fulfillmentFrom.trim().length > 0) || (fulfillmentCity && fulfillmentCity.trim().length > 0)
+              );
+              if (!hasFulfillmentLocation) return null;
               return (
-                <div key={block} className="ru-block" aria-label="Fulfillment">
+                <div key={block} className="ru-block" aria-label={t("product.fulfillment")}>
                   <div className="ru-block-head">
-                    <h2 className="ru-h2">Fulfillment</h2>
+                    <h2 className="ru-h2">{t("product.fulfillment")}</h2>
                   </div>
 
                   <div className="ru-ful-grid">
                     <div className="ru-ful-row">
-                      <p className="ru-ful-q">Where do you want delivery?</p>
+                      <p className="ru-ful-q">{t("product.deliveryQuestion")}</p>
                       <div className="flex flex-wrap items-center gap-2">
-                        <label className="ru-ful-select" aria-label="Deliver to (country)">
+                        <label className="ru-ful-select" aria-label={t("product.deliverToCountry")}>
                           <select
                             value={deliverTo}
                             onChange={(e) => setDeliverTo(e.target.value)}
                           >
-                            {deliverToCountries.map((name) => (
-                              <option key={name} value={name}>
-                                {name}
-                              </option>
-                            ))}
+                            {deliverToCountries.map((name) => {
+                              const flag = getCountryFlag(name);
+                              return (
+                                <option key={name} value={name}>
+                                  {flag ? `${flag} ${name}` : name}
+                                </option>
+                              );
+                            })}
                           </select>
                         </label>
                         {deliveryCities.length > 0 ? (
-                          <label className="ru-ful-select" aria-label="Deliver to (city)">
+                          <label className="ru-ful-select" aria-label={t("product.deliverToCity")}>
                             <select
                               value={deliverToCity}
                               onChange={(e) => setDeliverToCity(e.target.value)}
                             >
-                              <option value="">City</option>
+                              <option value="">{t("product.city")}</option>
                               {deliveryCities.map((city) => (
                                 <option key={city} value={city}>
                                   {city}
@@ -695,29 +1032,40 @@ export function ProductConfigurator({
                     </div>
 
                     <div className="ru-ful-row ru-ful-row--stack">
-                      <p className="ru-ful-q">Production and shipping address</p>
-                      <p className="ru-ful-desc">
-                        {fulfillmentFrom?.trim()
-                          ? fulfillmentCity?.trim()
-                            ? `${fulfillmentCity.trim()}, ${fulfillmentFrom.trim()} — This product is made and shipped to you from this location.`
-                            : `${fulfillmentFrom.trim()} — This product is made and shipped to you from this location.`
-                          : "This product is made and shipped to you from your selected location."}
-                      </p>
-                      <button type="button" className="ru-ful-card" disabled aria-disabled>
-                        <div className="ru-ful-card-left">
-                          <div className="ru-ful-card-title">
-                            {fulfillmentFrom?.trim() || "International Fulfillment"}
-                          </div>
-                          <div className="ru-ful-card-sub">
-                            {fulfillmentFrom?.trim()
-                              ? fulfillmentCity?.trim()
-                                ? `${fulfillmentCity.trim()}, ${fulfillmentFrom.trim()}`
-                                : fulfillmentFrom.trim()
-                              : "Customized and shipped from an international fulfillment center"}
-                          </div>
-                        </div>
-                        <span className="ru-radio-dot" aria-hidden />
-                      </button>
+                      <p className="ru-ful-q">{t("product.productionShippingAddress")}</p>
+                      {(() => {
+                        const rawCountry = fulfillmentFrom?.trim() || "";
+                        const countryName = rawCountry === "Turkey" ? "Türkiye" : rawCountry;
+                        const flag = countryName ? getCountryFlag(countryName) : "";
+                        const countryLabel = countryName ? `${flag ? `${flag} ` : ""}${countryName}` : "";
+
+                        return (
+                          <>
+                            <p className="ru-ful-desc">
+                              {countryLabel
+                                ? fulfillmentCity?.trim()
+                                  ? `${fulfillmentCity.trim()}, ${countryLabel} — ${t("product.madeAndShippedThisLocation")}`
+                                  : `${countryLabel} — ${t("product.madeAndShippedThisLocation")}`
+                                : t("product.madeAndShippedSelectedLocation")}
+                            </p>
+                            <button type="button" className="ru-ful-card" disabled aria-disabled>
+                              <div className="ru-ful-card-left">
+                                <div className="ru-ful-card-title">
+                                  {countryLabel || t("product.internationalFulfillment")}
+                                </div>
+                                <div className="ru-ful-card-sub">
+                                  {countryLabel
+                                    ? fulfillmentCity?.trim()
+                                      ? `${fulfillmentCity.trim()}, ${countryLabel}`
+                                      : countryLabel
+                                    : t("product.customizedShippedInternational")}
+                                </div>
+                              </div>
+                              <span className="ru-radio-dot" aria-hidden />
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -745,7 +1093,7 @@ export function ProductConfigurator({
                 {hasShippingTip ? <div className="ru-tip">{shippingTip}</div> : null}
 
                 {hasShippingMethodCard ? (
-                  <div className="ru-ship-card" aria-label="Shipping method">
+                  <div className="ru-ship-card" aria-label={t("product.shippingMethod")}>
                     <div className="ru-ship-row">
                       <div>
                         {hasShippingMethodName ? <p className="ru-ship-name">{shippingMethodName}</p> : null}
@@ -762,28 +1110,28 @@ export function ProductConfigurator({
                 ) : null}
 
                 {hasAnyDeliveryRow ? (
-                  <div className="ru-delivery" aria-label="Estimated delivery">
+                  <div className="ru-delivery" aria-label={t("product.estimatedDelivery")}>
                     {hasProductionTimeText ? (
                       <div className="ru-delivery-row">
-                        <span className="ru-muted">Production Time</span>
+                        <span className="ru-muted">{t("product.productionTime")}</span>
                         <span className="ru-delivery-val">{productionTimeText}</span>
                       </div>
                     ) : null}
                     {hasShippingTimeText ? (
                       <div className="ru-delivery-row">
-                        <span className="ru-muted">Shipping Time</span>
+                        <span className="ru-muted">{t("product.shippingTime")}</span>
                         <span className="ru-delivery-val">{shippingTimeText}</span>
                       </div>
                     ) : null}
                     {hasTotalFulfillmentTimeText ? (
                       <div className="ru-delivery-row">
-                        <span className="ru-muted">Total Fulfilment Time</span>
+                        <span className="ru-muted">{t("product.totalFulfillmentTime")}</span>
                         <span className="ru-delivery-val">{totalFulfillmentTimeText}</span>
                       </div>
                     ) : null}
                     {hasEstimatedDeliveryText ? (
                       <div className="ru-delivery-row">
-                        <span className="ru-muted">Estimated Delivery</span>
+                        <span className="ru-muted">{t("product.estimatedDelivery")}</span>
                         <span className="ru-delivery-val">{estimatedDeliveryText}</span>
                       </div>
                     ) : null}
@@ -794,12 +1142,12 @@ export function ProductConfigurator({
           })}
         </div>
 
-        <aside className="ru-sticky" aria-label="Sticky purchase panel">
+        <aside className="ru-sticky" aria-label={t("product.stickyPurchasePanel")}>
           <div className="ru-sticky-head">
             <div className="ru-sticky-thumb-wrap">
               <SignedImage
                 src={thumbnailUrl}
-                alt={`${productName} thumbnail`}
+                alt={t("product.thumbnailAlt", { name: productName })}
                 className="ru-sticky-thumb h-full w-full object-contain"
                 loading="lazy"
               />
@@ -852,55 +1200,83 @@ export function ProductConfigurator({
           </div>
           <div className="ru-sticky-divider" />
 
+          {stickyPriceFormatted ? (
+            <div className="ru-sticky-row">
+              <div>
+                <p className="ru-sticky-strong">{t("product.fulfillInternationally")}</p>
+                <p className="ru-muted">{t("product.pricePerItem")}</p>
+              </div>
+              <span className="ru-sticky-price">{stickyPriceFormatted}</span>
+            </div>
+          ) : null}
+
+          {effectiveTier && (
+            <div className="ru-sticky-box">
+              <div className="ru-sticky-box-row">
+                <span>{t("cart.quote.unitPrice")}</span>
+                <span>{formatUnitPrice(effectiveUnitPrice, effectiveTier.currency)}</span>
+              </div>
+              {placementFeePerItem > 0 ? (
+                <div className="ru-sticky-box-row">
+                  <span>{t("product.placementFees")}</span>
+                  <span>+{formatUnitPrice(placementFeePerItem, effectiveTier.currency)}</span>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           <div className="ru-sticky-row">
             <div>
-              <p className="ru-sticky-strong">Fulfill Internationally</p>
-              <p className="ru-muted">Price per item</p>
+              <p className="ru-sticky-strong">{t("common.quantity")}</p>
+              <p className="ru-muted">{t("product.total")}</p>
             </div>
-            <span className="ru-sticky-price">{stickyPriceFormatted}</span>
+            <span className="ru-sticky-price">{formatUnitPrice(quantity * effectiveUnitPrice, effectiveTier?.currency ?? productCurrency ?? "USD")}</span>
           </div>
 
-          <div className="ru-sticky-box">
-            <div className="ru-sticky-box-row">
-              <span>Unit Price</span>
-              <span>{formatUnitPrice(effectiveUnitPrice, effectiveTier.currency)}</span>
-            </div>
-            {placementFeePerItem > 0 ? (
-              <div className="ru-sticky-box-row">
-                <span>Placement fees</span>
-                <span>+{formatUnitPrice(placementFeePerItem, effectiveTier.currency)}</span>
-              </div>
-            ) : null}
-          </div>
-
-          {typeof onQuantityChange === "function" && typeof onAddToCart === "function" ? (
+          {canAdjustQuantity ? (
             <>
               <div className="ru-sticky-divider" />
               {maxQuantity === 0 ? (
                 <p className="ru-muted text-sm">{t("product.outOfStock")}</p>
               ) : (
-                <>
+                <div className="space-y-2">
                   <div className="ru-sticky-row">
-                    <label className="ru-sticky-strong" htmlFor="sticky-qty">{t("common.quantity")}</label>
-                    <input
-                      id="sticky-qty"
-                      type="text"
-                      inputMode="numeric"
-                      value={quantityInputLocal !== null ? quantityInputLocal : String(quantity)}
-                      onChange={(e) => setQuantityInputLocal(e.target.value)}
-                      onBlur={() => {
-                        const raw = (quantityInputLocal ?? String(quantity)).trim();
-                        const v = raw === "" ? 1 : parseInt(raw, 10);
-                        const clamped =
-                          maxQuantity != null ? Math.min(Number.isNaN(v) || v < 1 ? 1 : v, maxQuantity) : (Number.isNaN(v) || v < 1 ? 1 : v);
-                        onQuantityChange(clamped);
-                        setQuantityInputLocal(null);
-                      }}
-                      className="h-10 w-20 rounded-md border border-input bg-background px-2 text-center text-sm"
-                    />
+                    <label className="ru-sticky-strong" htmlFor="sticky-qty">
+                      {t("common.quantity")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="ru-qty-btn"
+                        onClick={() => adjustQuantityBy(-1)}
+                        disabled={quantityInputDisabled || quantity <= 1}
+                        aria-label={t("product.decreaseQuantity")}
+                      >
+                        −
+                      </button>
+                      <input
+                        id="sticky-qty"
+                        type="text"
+                        inputMode="numeric"
+                        disabled={quantityInputDisabled}
+                        value={quantityInputLocal !== null ? quantityInputLocal : String(quantity)}
+                        onChange={(e) => setQuantityInputLocal(e.target.value)}
+                        onBlur={commitQuantityInput}
+                        className="h-10 w-20 rounded-md border border-input bg-background px-2 text-center text-sm"
+                      />
+                      <button
+                        type="button"
+                        className="ru-qty-btn"
+                        onClick={() => adjustQuantityBy(1)}
+                        disabled={quantityInputDisabled || (maxQuantity != null && quantity >= maxQuantity)}
+                        aria-label={t("product.increaseQuantity")}
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                   {maxQuantity != null && maxQuantity > 0 ? (
-                    <p className="ru-muted text-sm">{t("product.stockLimit", { count: maxQuantity })}</p>
+                    <p className="ru-muted text-xs">{t("product.stockLimit", { count: maxQuantity })}</p>
                   ) : null}
                   <div className="ru-sticky-box">
                     <div className="ru-sticky-box-row">
@@ -909,37 +1285,45 @@ export function ProductConfigurator({
                     </div>
                     <div className="ru-sticky-box-row">
                       <span>{t("common.total")}</span>
-                      <span>{formatUnitPrice(quantity * effectiveUnitPrice, effectiveTier.currency)}</span>
+                      <span>{formatUnitPrice(quantity * effectiveUnitPrice, effectiveTier?.currency ?? productCurrency ?? "USD")}</span>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="ru-btn-outline w-full"
-                    onClick={() => {
-                      const selectedPlacements = selectedPlacementIndices
-                        .map((i) => placementsList[i])
-                        .filter(Boolean)
-                        .map((p) => ({ name: p.name || "", price: p.price || "" }));
-                      onAddToCart(placementFeePerItem, effectiveTier.unitPrice, {
-                        selectedTechnique: selectedTechnique || undefined,
-                        selectedPlacements: selectedPlacements.length ? selectedPlacements : undefined,
-                      });
-                    }}
-                    disabled={maxQuantity === 0 || (sizes.length > 0 && effectiveSelectedSizes.length === 0)}
-                    title={sizes.length > 0 && effectiveSelectedSizes.length === 0 ? t("product.selectSize") : undefined}
-                  >
-                    {t("designer.addToCart")}
-                  </button>
-                </>
+                </div>
               )}
+
+              {canAddToCart ? (
+                <button
+                  type="button"
+                  className="ru-btn-outline w-full"
+                  onClick={() => {
+                    const selectedPlacements = selectedPlacementIndices
+                      .map((i) => placementsList[i])
+                      .filter(Boolean)
+                      .map((p) => ({ name: p.name || "", price: p.price || "" }));
+                    onAddToCart?.(placementFeePerItem, effectiveTier?.unitPrice ?? 0, {
+                      selectedTechnique: selectedTechnique || undefined,
+                      selectedPlacements: selectedPlacements.length ? selectedPlacements : undefined,
+                      currency: productCurrency,
+                    });
+                  }}
+                  disabled={maxQuantity === 0 || (sizes.length > 0 && effectiveSelectedSizes.length === 0)}
+                  title={sizes.length > 0 && effectiveSelectedSizes.length === 0 ? t("product.selectSize") : undefined}
+                >
+                  {t("designer.addToCart")}
+                </button>
+              ) : null}
             </>
           ) : null}
 
           <div className="ru-sticky-actions">
-            <button type="button" className="ru-sticky-primary" onClick={handleDesignNow}>
-              {t("common.designNow")}
+            <button
+              type="button"
+              className="ru-sticky-primary"
+              onClick={primaryCta === "request_quote" ? handleRequestQuote : handleDesignNow}
+            >
+              {primaryCta === "request_quote" ? t("common.requestQuote") : t("common.designNow")}
             </button>
-            <p className="ru-sticky-note">Shipping costs are calculated at checkout</p>
+            <p className="ru-sticky-note">{t("product.shippingCostCalculatedAtCheckout")}</p>
           </div>
         </aside>
       </div>

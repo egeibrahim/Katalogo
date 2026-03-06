@@ -38,7 +38,7 @@ export default function Home() {
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button asChild>
-              <Link to="/catalog/all">Kataloğa Git</Link>
+              <Link to="/catalog">Kataloğa Git</Link>
             </Button>
             {!user ? (
               <Button asChild variant="outline">
@@ -77,7 +77,7 @@ export default function Home() {
                     </Button>
                   ) : null}
                   <Button asChild variant="outline">
-                    <Link to="/catalog/all">Kataloğa Git</Link>
+                    <Link to="/catalog">Kataloğa Git</Link>
                   </Button>
                 </div>
               </>

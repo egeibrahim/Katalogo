@@ -18,6 +18,7 @@ type QuoteItem = {
   lineTotal?: number;
   hasDesign?: boolean;
   designName?: string;
+  mockupUrls?: Record<string, string>;
 };
 
 type QuotePayload = {
@@ -34,16 +35,25 @@ function buildHtmlEmail(p: QuotePayload): string {
   const items = p.items ?? [];
   const rows = items
     .map(
-      (i) => `
+      (i) => {
+        let mockupsHtml = "";
+        if (i.mockupUrls && Object.keys(i.mockupUrls).length > 0) {
+          mockupsHtml = "<br>" + Object.values(i.mockupUrls).map(url => `<img src="${escapeHtml(url)}" style="max-width: 100px; max-height: 100px; margin-top: 4px; margin-right: 4px; border: 1px solid #ddd; border-radius: 4px;" alt="Mockup">`).join("");
+        }
+        return `
     <tr>
-      <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(i.name ?? "—")}</td>
+      <td style="padding:8px;border:1px solid #ddd;">
+        ${escapeHtml(i.name ?? "—")}
+        ${mockupsHtml}
+      </td>
       <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(i.product_code ?? "—")}</td>
       <td style="padding:8px;border:1px solid #ddd;">${i.selectedSize ?? "—"}</td>
       <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(i.selectedColorName ?? "—")}</td>
       <td style="padding:8px;border:1px solid #ddd;">${i.quantity ?? 0}</td>
       <td style="padding:8px;border:1px solid #ddd;">${i.hasDesign ? "Evet" + (i.designName ? ` (${escapeHtml(i.designName)})` : "") : "Hayır"}</td>
       <td style="padding:8px;border:1px solid #ddd;">${typeof i.lineTotal === "number" ? i.lineTotal.toFixed(2) : "—"}</td>
-    </tr>`
+    </tr>`;
+      }
     )
     .join("");
 

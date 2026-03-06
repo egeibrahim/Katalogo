@@ -15,7 +15,7 @@ export function useProductBySlugOrIdAnyStatus({ slug, id }: Params) {
     enabled: Boolean(slug || id),
     queryFn: async (): Promise<PublicProduct | null> => {
       const select =
-        "id,name,description,slug,badge,product_code,price_from,category_id,cover_image_url,thumbnail_url,meta_title,meta_description,is_active";
+        "id,name,description,slug,badge,product_code,price_from,currency,category_id,cover_image_url,thumbnail_url,meta_title,meta_description,is_active";
 
       if (slug) {
         // limit(1) prevents errors if the table accidentally has duplicate slugs.

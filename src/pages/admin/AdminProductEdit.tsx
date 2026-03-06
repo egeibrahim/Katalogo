@@ -1,5 +1,4 @@
-import type { CSSProperties } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
@@ -7,7 +6,9 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { upsertProductGalleryImages } from "@/lib/galleryEdgeFunction";
 import { slugify } from "@/lib/slug";
+import { resolveUniqueProductSlug } from "@/lib/productSlug";
 import { getSignedImageUrl, uploadPublicFile, sanitizeStorageFileName } from "@/lib/storage";
+import { SUPPORTED_CURRENCIES, normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
 
 import {
   PrelineCard,
@@ -44,6 +45,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { UnitPriceTiersEditor, type UnitPriceTierDraft } from "@/components/admin/UnitPriceTiersEditor";
@@ -53,6 +55,7 @@ import {
   FULFILLMENT_COUNTRIES,
   getCitiesForCountry,
 } from "@/lib/fulfillmentLocations";
+import { getCountryFlag } from "@/components/newcatalog/product/ProductConfigurator";
 import { ProductEditHeader } from "@/components/admin/ProductEditHeader";
 import { ColorPoolPopover } from "@/components/designer/ColorPoolPopover";
 import { ProductEditSectionNav } from "@/components/admin/ProductEditSectionNav";
@@ -127,11 +130,13 @@ const schema = z.object({
   product_code: z.string().optional().nullable(),
   category_id: z.string().optional().nullable(),
   is_active: z.boolean(),
+  currency: z.enum(SUPPORTED_CURRENCIES),
 });
 
 type Mode = "create" | "edit";
 
 function AdminSizeGuideImageCell({ imageUrl, onRemove }: { imageUrl: string; onRemove: () => void }) {
+  const { t } = useI18n();
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const displayUrl = signedUrl ?? imageUrl;
@@ -152,18 +157,18 @@ function AdminSizeGuideImageCell({ imageUrl, onRemove }: { imageUrl: string; onR
       {!failed ? (
         <img
           src={displayUrl}
-          alt="Size guide"
+          alt={t("admin.productEdit.sizeGuideAlt")}
           loading="lazy"
           referrerPolicy="no-referrer"
           className="h-full w-full object-contain"
           onError={handleError}
         />
       ) : (
-        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Failed to load</div>
+        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">{t("admin.productEdit.sizeGuideFailedToLoad")}</div>
       )}
       <div className="absolute bottom-1 right-1">
         <Button type="button" variant="secondary" size="sm" className="h-7 text-xs" onClick={onRemove}>
-          Remove
+          {t("common.remove")}
         </Button>
       </div>
     </div>
@@ -179,6 +184,7 @@ function AdminGalleryImageCell({
   isCover: boolean;
   onRemove?: () => void;
 }) {
+  const { t } = useI18n();
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -200,7 +206,7 @@ function AdminGalleryImageCell({
       {!failed ? (
         <img
           src={displayUrl}
-          alt="Gallery"
+          alt={t("admin.productEdit.galleryAlt")}
           loading="lazy"
           referrerPolicy="no-referrer"
           className="h-full w-full object-cover"
@@ -209,12 +215,12 @@ function AdminGalleryImageCell({
       ) : null}
       {failed ? (
         <span className="absolute inset-0 flex items-center justify-center bg-muted/80 text-xs text-muted-foreground">
-          No image
+          {t("admin.productEdit.noImage")}
         </span>
       ) : null}
       {isCover && !failed && (
         <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
-          Cover
+          {t("admin.productEdit.coverBadge")}
         </span>
       )}
       {onRemove && (
@@ -226,7 +232,7 @@ function AdminGalleryImageCell({
             onRemove();
           }}
           className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white hover:bg-red-600 transition-colors"
-          aria-label="Remove from gallery"
+          aria-label={t("admin.productEdit.aria.removeFromGallery")}
         >
           <X className="h-3.5 w-3.5 stroke-[2.5]" />
         </button>
@@ -246,6 +252,7 @@ function SortableGalleryImageCell({
   isCover: boolean;
   onRemove?: () => void;
 }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -255,7 +262,7 @@ function SortableGalleryImageCell({
     <div ref={setNodeRef} style={style} className={isDragging ? "opacity-80 z-10" : undefined}>
       <div
         className="relative cursor-grab active:cursor-grabbing touch-none rounded-lg overflow-hidden"
-        aria-label="Drag to reorder"
+        aria-label={t("admin.productEdit.aria.dragToReorder")}
         {...attributes}
         {...listeners}
       >
@@ -265,17 +272,35 @@ function SortableGalleryImageCell({
   );
 }
 
+
 export default function AdminProductEdit({ mode }: { mode: Mode }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const { t, locale } = useI18n();
+  const isTr = locale === "tr";
 
   const isBusinessScope = location.pathname.startsWith("/brand/");
   const productId = mode === "edit" ? id : undefined;
   const [activeSection, setActiveSection] = useState("general");
   const suppressNavigateOnCreateRef = useRef(false);
+  /** Toplu galeri yüklemede ürün yokken tek ürün oluşturulur; tüm yüklemeler bu promise'i paylaşır. */
+  const galleryCreateProductPromiseRef = useRef<Promise<string> | null>(null);
+  /** Create modda toplu galeri yüklerken sıralı sort_order (paralel yüklemeler çakışmasın). */
+  const galleryNextSortOrderRef = useRef(0);
+  /** Aynı batch'te sadece bir kez navigate edilsin. */
+  const galleryHasNavigatedRef = useRef(false);
+
+  useEffect(() => {
+    if (productId) {
+      galleryCreateProductPromiseRef.current = null;
+      galleryNextSortOrderRef.current = 0;
+      galleryHasNavigatedRef.current = false;
+    }
+  }, [productId]);
 
   const headerRef = useRef<HTMLDivElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
@@ -649,128 +674,8 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
     refetchOnWindowFocus: false,
   });
 
-  const { data: regionOptions } = useQuery({
-    queryKey: ["admin", "attribute_values", "region"],
-    queryFn: async () => {
-      // Source of truth for deliver-to regions lives in admin filters (attributes/attribute_values).
-      const { data: attrsRows, error: attrsErr } = await supabase
-        .from("attributes")
-        .select("id,key")
-        .eq("key", "region");
-      if (attrsErr) throw attrsErr;
-
-      const attrId = (attrsRows ?? [])?.[0]?.id;
-      if (!attrId) return [] as { label: string; value: string }[];
-
-      const { data: values, error: valuesErr } = await supabase
-        .from("attribute_values")
-        .select("value,sort_order,created_at,is_active")
-        .eq("attribute_id", attrId)
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true });
-      if (valuesErr) throw valuesErr;
-
-      return (values ?? [])
-        .map((v: any) => String(v.value ?? "").trim())
-        .filter(Boolean)
-        .map((v) => ({ label: v, value: v }));
-    },
-    staleTime: 1000 * 60 * 10,
-    refetchOnWindowFocus: false,
-  });
-
-  const { data: fulfillmentFromOptions } = useQuery({
-    queryKey: ["admin", "attribute_values", "fulfillment_from"],
-    queryFn: async () => {
-      // Source of truth for fulfillment_from lives in admin filters (attributes/attribute_values).
-      const { data: attrsRows, error: attrsErr } = await supabase
-        .from("attributes")
-        .select("id,key")
-        .eq("key", "fulfillment_from");
-      if (attrsErr) throw attrsErr;
-
-      const attrId = (attrsRows ?? [])?.[0]?.id;
-      if (!attrId) return [] as { label: string; value: string }[];
-
-      const { data: values, error: valuesErr } = await supabase
-        .from("attribute_values")
-        .select("value,sort_order,created_at,is_active")
-        .eq("attribute_id", attrId)
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true });
-      if (valuesErr) throw valuesErr;
-
-      return (values ?? [])
-        .map((v: any) => String(v.value ?? "").trim())
-        .filter(Boolean)
-        .map((v) => ({ label: v, value: v }));
-    },
-    staleTime: 1000 * 60 * 10,
-    refetchOnWindowFocus: false,
-  });
-
-  // Live sync: if Filters/regions changes while Product/Edit is open, refresh region options automatically.
-  useEffect(() => {
-    let unsub: (() => void) | null = null;
-
-    (async () => {
-      const { data: attrRows, error } = await supabase.from("attributes").select("id").eq("key", "region");
-      if (error) return;
-      const attrId = (attrRows ?? [])?.[0]?.id;
-      if (!attrId) return;
-
-      const filter = `attribute_id=eq.${attrId}`;
-
-      const channel = supabase
-        .channel("admin-region-options-sync")
-        .on("postgres_changes", { event: "*", schema: "public", table: "attribute_values", filter }, () => {
-          qc.invalidateQueries({ queryKey: ["admin", "attribute_values", "region"] });
-        })
-        .subscribe();
-
-      unsub = () => {
-        supabase.removeChannel(channel);
-      };
-    })();
-
-    return () => {
-      if (unsub) unsub();
-    };
-  }, [qc]);
-
-  // Live sync: keep Fulfillment From options updated while Product/Edit is open.
-  useEffect(() => {
-    let unsub: (() => void) | null = null;
-
-    (async () => {
-      const { data: attrRows, error } = await supabase
-        .from("attributes")
-        .select("id")
-        .eq("key", "fulfillment_from");
-      if (error) return;
-      const attrId = (attrRows ?? [])?.[0]?.id;
-      if (!attrId) return;
-
-      const filter = `attribute_id=eq.${attrId}`;
-
-      const channel = supabase
-        .channel("admin-fulfillment-from-options-sync")
-        .on("postgres_changes", { event: "*", schema: "public", table: "attribute_values", filter }, () => {
-          qc.invalidateQueries({ queryKey: ["admin", "attribute_values", "fulfillment_from"] });
-        })
-        .subscribe();
-
-      unsub = () => {
-        supabase.removeChannel(channel);
-      };
-    })();
-
-    return () => {
-      if (unsub) unsub();
-    };
-  }, [qc]);
+  // Region and Fulfillment From options come from FULFILLMENT_COUNTRIES (see Delivery Regions multi-select and Fulfillment country select below).
+  // No dependency on attributes/attribute_values for region or fulfillment_from.
 
   // Live sync: keep Fit options updated while Product/Edit is open.
   useEffect(() => {
@@ -1476,6 +1381,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
     product_code: "",
     category_id: null,
     is_active: false,
+    currency: "USD",
   });
   const [description, setDescription] = useState<string>("");
   const [attrs, setAttrs] = useState<Record<string, unknown>>({});
@@ -1494,10 +1400,10 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
     if (!selectedParentId) return [];
     const subs = subcategoriesByParent.get(selectedParentId) ?? [];
     return [
-      { value: selectedParentId, label: "— Main category —" },
+      { value: selectedParentId, label: t("admin.productEdit.mainCategoryOption") },
       ...subs.map((c: any) => ({ value: c.id, label: c.name })),
     ];
-  }, [selectedParentId, subcategoriesByParent]);
+  }, [selectedParentId, subcategoriesByParent, t]);
   const currentCategorySlug = currentCategory?.slug ?? null;
   const currentCategoryName = (currentCategory?.name ?? "").toLowerCase();
   const parentCategory = useMemo(() => {
@@ -1665,6 +1571,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
       product_code: (product as any).product_code ?? "",
       category_id: (product as any).category_id ?? null,
       is_active: Boolean(product.is_active),
+      currency: normalizeCurrency((product as any).currency),
     });
     setDescription(product.description ?? "");
   }, [product, productId]);
@@ -1727,6 +1634,37 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
     initialSyncDoneRef.current.sizes = true;
     setVariantSizes(new Set(selectedSizeIds));
   }, [selectedSizeIds, productId]);
+
+  const variantColorIdsKey = useMemo(() => Array.from(variantColors).sort().join(","), [variantColors]);
+
+  useEffect(() => {
+    const list = Array.isArray((attrs as any).print_area_views) ? (attrs as any).print_area_views : [];
+    if (list.length === 0) return;
+    const allowed = new Set(Array.from(variantColors).map((id) => String(id)));
+    let changed = false;
+    const next = list.map((view: any) => {
+      if (!Array.isArray(view?.color_ids) || view.color_ids.length === 0) {
+        if (allowed.size === 0 && Array.isArray(view?.color_ids) && view.color_ids.length > 0) {
+          changed = true;
+          return { ...view, color_ids: [] };
+        }
+        return view;
+      }
+      const filtered = view.color_ids.filter((cid: unknown) => allowed.has(String(cid)));
+      if (filtered.length === view.color_ids.length) {
+        if (allowed.size === 0 && filtered.length > 0) {
+          changed = true;
+          return { ...view, color_ids: [] };
+        }
+        return view;
+      }
+      changed = true;
+      return { ...view, color_ids: filtered };
+    });
+    if (changed) {
+      setAttrs((prev) => ({ ...prev, print_area_views: next }));
+    }
+  }, [variantColorIdsKey, attrs, variantColors]);
 
   useEffect(() => {
     if (!mockups || !productId) return;
@@ -1805,9 +1743,11 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
       for (const t of priceKeys) {
         pricesByTechnique[t] = byTech[t] ?? legacyPrice ?? "";
       }
+      const colorIds = Array.isArray(x?.color_ids) ? x.color_ids.filter((id: unknown) => typeof id === "string") : [];
       return {
         name: typeof x?.name === "string" ? x.name : "",
         pricesByTechnique,
+        color_ids: colorIds as string[],
       };
     });
   }, [attrs]);
@@ -1820,6 +1760,61 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
       return opt?.label ?? t;
     });
   }, [attrs, decorationMethodOptions]);
+
+  const ensureProductInPrimaryCatalog = React.useCallback(
+    async (productId: string) => {
+      if (!isBusinessScope || !userId || !productId) return;
+
+      const { data: firstCatalog, error: firstCatalogErr } = await supabase
+        .from("catalogs")
+        .select("id")
+        .eq("owner_user_id", userId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (firstCatalogErr) throw firstCatalogErr;
+
+      let catalogId = firstCatalog?.id ?? null;
+      if (!catalogId) {
+        const base = slugify((user?.email ?? "katalogum").split("@")[0] || "katalogum");
+        const slug = `${base || "katalogum"}-${Date.now().toString().slice(-6)}`;
+        const { data: createdCatalog, error: createCatalogErr } = await supabase
+          .from("catalogs")
+          .insert({
+            owner_user_id: userId,
+            name: "Katalogum",
+            slug,
+            contact_email: user?.email ?? "info@example.com",
+            is_public: false,
+          })
+          .select("id")
+          .single();
+        if (createCatalogErr || !createdCatalog?.id) throw createCatalogErr ?? new Error("Catalog create failed");
+        catalogId = createdCatalog.id;
+      }
+
+      const { data: existingLink } = await supabase
+        .from("catalog_products")
+        .select("id")
+        .eq("catalog_id", catalogId)
+        .eq("product_id", productId)
+        .maybeSingle();
+      if (existingLink) return;
+
+      const { count } = await supabase
+        .from("catalog_products")
+        .select("id", { count: "exact", head: true })
+        .eq("catalog_id", catalogId);
+
+      const { error: linkErr } = await supabase.from("catalog_products").insert({
+        catalog_id: catalogId,
+        product_id: productId,
+        sort_order: count ?? 0,
+      });
+      if (linkErr) throw linkErr;
+    },
+    [isBusinessScope, userId, user?.email]
+  );
 
   const saveMutation = useMutation({
     mutationFn: async (orderAtSave: { id: string; image_url: string; sort_order: number }[] | void) => {
@@ -1834,6 +1829,10 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
         unitPriceTiers.length > 0
           ? (unitPriceTiers.slice().sort((a, b) => a.sort_order - b.sort_order)[0]?.unit_price ?? null)
           : null;
+      const resolvedSlug = await resolveUniqueProductSlug(
+        derivedSlug || null,
+        mode === "edit" ? productId : null
+      );
       const productPayload: any = {
         name: parsed.name,
         description,
@@ -1841,7 +1840,8 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
         category_id: parsed.category_id || null,
         price_from: firstTierPrice != null ? Number(firstTierPrice) : null,
         is_active: parsed.is_active,
-        slug: derivedSlug || null,
+        currency: parsed.currency,
+        slug: resolvedSlug,
         meta_title: null,
         meta_description: null,
         cover_image_url: firstImageUrl,
@@ -1868,6 +1868,8 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
         if (error) throw error;
       }
 
+      await ensureProductInPrimaryCatalog(pid!);
+
       if (pid && currentOrder.length > 0) {
         const productIdForGallery = String(pid);
         const rows: ProductGalleryImageUpsertRow[] = currentOrder
@@ -1883,14 +1885,32 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
           .filter((r): r is ProductGalleryImageUpsertRow => r != null && Boolean(r.product_id));
         if (rows.length > 0) {
           const { error: fnErr } = await upsertProductGalleryImages(rows);
-          if (fnErr) throw new Error("Galeri sırası yazılamadı: " + fnErr);
+          if (fnErr) throw new Error(t("admin.productEdit.toast.galleryOrderSaveFailed") + ": " + fnErr);
         }
       }
 
       // 2) Attributes JSONB (Tapstitch-like)
+      // Sync selected size & color names into attrs so catalog filters can read them
+      const sizeList = (sizes ?? []) as any[];
+      const selectedSizeNamesForAttrs = sizeList
+        .filter((s) => variantSizes.has(s.id))
+        .sort((a, b) => (Number(a.sort_order) ?? 0) - (Number(b.sort_order) ?? 0))
+        .map((s) => String(s.name));
+
+      const colorRows = (selectedColorRows ?? []) as { id: string; name: string }[];
+      const selectedColorNamesForAttrs = colorRows
+        .filter((c) => variantColors.has(c.id))
+        .map((c) => String(c.name));
+
+      const attrsSynced = {
+        ...attrs,
+        size: selectedSizeNamesForAttrs.length > 0 ? selectedSizeNamesForAttrs : null,
+        color: selectedColorNamesForAttrs.length > 0 ? selectedColorNamesForAttrs : null,
+      };
+
       const { error: attrsErr } = await supabase
         .from("product_attributes")
-        .upsert([{ product_id: pid!, data: attrs as any }], { onConflict: "product_id" });
+        .upsert([{ product_id: pid!, data: attrsSynced as any }], { onConflict: "product_id" });
       if (attrsErr) throw attrsErr;
 
       // 2.5) Print Area → product_views senkronu: Mockup altındaki görünüm isimleri Print Area'dan gelir
@@ -2008,7 +2028,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
       }
       if (isBusinessScope) qc.invalidateQueries({ queryKey: ["business", "products", user?.id] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Save failed"),
+    onError: (e: any) => toast.error(e?.message ?? t("admin.productEdit.toast.saveFailed")),
   });
 
   const handleUpload = async (file: File, kind: "front" | "back" | "side" | "cover" | "gallery" | "video" | "size_guide") => {
@@ -2037,35 +2057,41 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
         let pidForGallery = productId;
         let createdNow = false;
         if (!pidForGallery) {
+          let createPromise = galleryCreateProductPromiseRef.current;
+          if (!createPromise) {
+            createPromise = saveMutation.mutateAsync();
+            galleryCreateProductPromiseRef.current = createPromise;
+          }
           try {
             suppressNavigateOnCreateRef.current = true;
-            pidForGallery = await saveMutation.mutateAsync();
+            pidForGallery = await createPromise;
             createdNow = true;
           } finally {
             suppressNavigateOnCreateRef.current = false;
           }
         }
 
-        const nextSort = (gallery?.length ?? 0) + 1;
+        const nextSort = productId != null ? (gallery?.length ?? 0) + 1 : galleryNextSortOrderRef.current++;
         const { error } = await supabase
           .from("product_gallery_images")
           .insert({ product_id: pidForGallery, image_url: url, sort_order: nextSort });
         if (error) throw error;
         await qc.refetchQueries({ queryKey: ["admin", "product", pidForGallery, "gallery"] });
-        if (createdNow) {
+        if (createdNow && !galleryHasNavigatedRef.current) {
+          galleryHasNavigatedRef.current = true;
           navigate(`/admin/products/${pidForGallery}`);
         }
-        toast.success("Image added");
+        toast.success(t("admin.productEdit.toast.imageAdded"));
       }
 
       if (kind === "video") {
         setAttrs((a) => ({ ...a, video_url: url }));
-        toast.success("Video uploaded");
+        toast.success(t("admin.productEdit.toast.videoUploaded"));
       }
 
       if (kind === "size_guide") {
         setAttrs((a) => ({ ...a, size_guide_image: url }));
-        toast.success("Size guide image uploaded");
+        toast.success(t("admin.productEdit.toast.sizeGuideUploaded"));
       }
     } finally {
       if (showProgress) setUploadProgress(null);
@@ -2076,11 +2102,11 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
     if (!productId) return;
     const { error } = await supabase.from("product_gallery_images").delete().eq("id", galleryImageId);
     if (error) {
-      toast.error(error.message ?? "Could not remove image");
+      toast.error(error.message ?? t("admin.productEdit.toast.couldNotRemoveImage"));
       return;
     }
     await qc.refetchQueries({ queryKey: ["admin", "product", productId, "gallery"] });
-    toast.success("Image removed from gallery");
+    toast.success(t("admin.productEdit.toast.imageRemovedFromGallery"));
   };
 
   const handleGalleryReorder = async (
@@ -2103,26 +2129,26 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
     if (fnErr) {
       setGalleryOrder(previousOrder);
       galleryOrderRef.current = previousOrder;
-      toast.error("Sıra kaydedilemedi: " + fnErr);
+      toast.error(t("admin.productEdit.toast.galleryOrderSaveFailed") + ": " + fnErr);
       return;
     }
     qc.setQueryData(["admin", "product", productId, "gallery"], reordered);
-    toast.success("Sıra güncellendi");
+    toast.success(t("admin.productEdit.toast.galleryOrderUpdated"));
   };
 
   const gallerySensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const sectionItems = useMemo(
     () => [
-      { id: "general", label: "Basic info" },
-      { id: "customize", label: "Variants & Media" },
-      { id: "unit_price", label: "Price" },
-      { id: "customization_options", label: "Customization" },
-      { id: "product_details", label: "Details" },
-      { id: "fulfillment", label: "Delivery times" },
-      { id: "shipping", label: "Shipping" },
+      { id: "general", label: t("admin.productEdit.section.general") },
+      { id: "customize", label: t("admin.productEdit.section.customize") },
+      { id: "unit_price", label: t("admin.productEdit.section.price") },
+      { id: "customization_options", label: t("admin.productEdit.section.customization") },
+      { id: "product_details", label: t("admin.productEdit.section.details") },
+      { id: "fulfillment", label: t("admin.productEdit.section.fulfillment") },
+      { id: "shipping", label: t("admin.productEdit.section.shipping") },
     ],
-    []
+    [t]
   );
 
   const scrollToSection = (sectionId: string) => {
@@ -2141,10 +2167,12 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
         accept="image/*"
         multiple
         className="fixed left-[-9999px] top-0 h-px w-px opacity-0"
-        aria-label="Galeriye resim yükle"
+        aria-label={t("admin.productEdit.aria.uploadGallery")}
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);
-          files.forEach((f) => handleUpload(f, "gallery").catch((err) => toast.error(err?.message ?? "Upload failed")));
+          files.forEach((f) =>
+            handleUpload(f, "gallery").catch((err) => toast.error(err?.message ?? t("admin.productEdit.toast.uploadFailed")))
+          );
           e.target.value = "";
         }}
       />
@@ -2153,15 +2181,15 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
         type="file"
         accept="video/*"
         className="fixed left-[-9999px] top-0 h-px w-px opacity-0"
-        aria-label="Ürün videosu yükle"
+        aria-label={t("admin.productEdit.aria.uploadVideo")}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (!file) return;
           if (!productId) {
-            toast.error("Önce ürünü kaydedin.");
+            toast.error(t("admin.productEdit.toast.saveFirst"));
             return;
           }
-          handleUpload(file, "video").catch((err) => toast.error(err?.message ?? "Upload failed"));
+          handleUpload(file, "video").catch((err) => toast.error(err?.message ?? t("admin.productEdit.toast.uploadFailed")));
           e.target.value = "";
         }}
       />
@@ -2194,39 +2222,39 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
               .eq("id", viewId);
             if (updateError) throw updateError;
             await refetchProductViews();
-            toast.success("View mockup uploaded");
+            toast.success(t("admin.productEdit.toast.viewMockupUploaded"));
           } catch (err: any) {
-            toast.error(err?.message || "Upload failed");
+            toast.error(err?.message || t("admin.productEdit.toast.uploadFailed"));
           }
         }}
       />
-      <div ref={headerRef} className="sticky top-0 z-30 bg-background pt-1 shadow-sm">
+      <div ref={headerRef} className="sticky top-0 z-30 bg-background">
         <ProductEditHeader
           breadcrumb={
             <div className="flex flex-wrap items-center gap-1.5">
-              <span>Products</span>
+              <span>{t("admin.products")}</span>
               <span aria-hidden className="opacity-60">
                 /
               </span>
-              <span className="truncate">{categoryName ?? "Uncategorized"}</span>
+              <span className="truncate">{categoryName ?? t("admin.productEdit.uncategorized")}</span>
             </div>
           }
-          title={mode === "create" ? "New product" : form.name || product?.name || "Edit product"}
+          title={mode === "create" ? t("admin.productEdit.newTitle") : form.name || product?.name || t("admin.productEdit.editTitle")}
           statusControl={
             <div className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-xs">
-              <span className="text-xs text-muted-foreground">Status</span>
-              <span className="text-xs text-muted-foreground">Draft</span>
+              <span className="text-xs text-muted-foreground">{t("admin.productEdit.status")}</span>
+              <span className="text-xs text-muted-foreground">{t("admin.productEdit.draft")}</span>
               <div className="scale-90 origin-center">
                 <Switch
                   checked={form.is_active}
                   onCheckedChange={(checked) => setForm((f) => ({ ...f, is_active: checked }))}
                 />
               </div>
-              <span className="text-xs">Published</span>
+              <span className="text-xs">{t("admin.productEdit.published")}</span>
             </div>
           }
           meta={
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground" aria-label="Product meta">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground" aria-label={t("admin.productEdit.aria.productMeta")}>
               {sizeRange ? (
                 <>
                   <span>{sizeRange}</span>
@@ -2235,7 +2263,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
               ) : null}
               {colorCount ? (
                 <>
-                  <span>{colorCount} Colors</span>
+                  <span>{t("admin.productEdit.meta.colorCount", { count: String(colorCount) })}</span>
                   <span aria-hidden className="h-1 w-1 rounded-full bg-muted-foreground/40" />
                 </>
               ) : null}
@@ -2246,7 +2274,6 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 </>
               ) : null}
               {oz ? <span>{oz} oz</span> : null}
-              {!sizeRange && !colorCount && !gsm && !oz ? <span>Meta info comes from Attributes/Variants data.</span> : null}
             </div>
           }
           onBack={() => navigate(isBusinessScope ? "/brand/products" : "/admin/products")}
@@ -2267,20 +2294,31 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
           ) : null}
 
           <section id="general" className="mt-2 scroll-mt-32">
-            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-gray-800">Basic info</h2>
+            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-gray-800">{t("admin.productEdit.section.general")}</h2>
               <div className="grid gap-3 md:grid-cols-2">
                 <PrelineInput
-                  label="Product name"
+                  label={t("admin.productEdit.productName")}
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 />
                 <PrelineInput
-                  label="Product code"
+                  label={t("admin.productEdit.productCode")}
                   value={form.product_code ?? ""}
                   onChange={(e) => setForm((f) => ({ ...f, product_code: e.target.value }))}
                 />
                 <PrelineSelect
-                  label="Main category"
+                  label={t("admin.productEdit.currency")}
+                  value={form.currency}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      currency: normalizeCurrency(e.target.value) as SupportedCurrency,
+                    }))
+                  }
+                  options={SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c }))}
+                />
+                <PrelineSelect
+                  label={t("admin.productEdit.mainCategory")}
                   value={selectedParentId ?? ""}
                   onChange={(e) => {
                     const v = e.target.value || null;
@@ -2296,40 +2334,42 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                       setForm((f) => ({ ...f, category_id: v }));
                     }
                   }}
-                  placeholder="Select main category"
+                  placeholder={t("admin.productEdit.mainCategoryPlaceholder")}
                   options={parentCategories.map((c: any) => ({ value: c.id, label: c.name }))}
                 />
                 <PrelineSelect
-                  label="Subcategory"
+                  label={t("admin.productEdit.subCategory")}
                   value={form.category_id ?? ""}
                   onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value || null }))}
-                  placeholder={selectedParentId ? "Select subcategory (optional)" : "Select main category first"}
+                  placeholder={
+                    selectedParentId ? t("admin.productEdit.subCategoryPlaceholderOptional") : t("admin.productEdit.selectMainCategoryFirst")
+                  }
                   options={subcategoryOptionsForParent}
                   disabled={!selectedParentId}
                 />
               </div>
               {form.category_id ? (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Form sections below adapt to the selected category.
+                  {t("admin.productEdit.categoryHint")}
                 </p>
               ) : mode === "create" ? (
                 <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-800">
-                  Select a category to see and edit the rest of the form (variants, price, details, etc.).
+                  {t("admin.productEdit.selectCategoryToContinue")}
                 </p>
               ) : null}
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {!isDrinkwareCategory && !isWallArtCategory && !isAccessoriesCategory && !isPillowsCategory && !isBlanketsCategory && !isCandlesCategory && (
                 <PrelineSelect
-                  label="Gender"
+                  label={t("admin.productEdit.gender")}
                   value={typeof (attrs as any).gender === "string" ? ((attrs as any).gender as string) : ""}
                   onChange={(e) => setAttrs((a) => ({ ...a, gender: e.target.value || null }))}
-                  placeholder="Select gender"
+                  placeholder={t("admin.productEdit.genderPlaceholder")}
                   options={GENDER_OPTIONS.map((g) => ({ value: g, label: g }))}
                 />
                 )}
                 <div className="space-y-1 max-w-sm">
                   <PrelineSelect
-                    label="Stock"
+                    label={t("admin.productEdit.stock")}
                     value={
                       (attrs as any).stock_mode === "quantity" || (attrs as any).stock_mode === "out_of_stock" || (attrs as any).stock_mode === "in_stock"
                         ? String((attrs as any).stock_mode)
@@ -2338,15 +2378,15 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                     onChange={(e) => setAttrs((a) => ({ ...a, stock_mode: e.target.value as "quantity" | "in_stock" | "out_of_stock" }))}
                     wrapperClassName="max-w-sm"
                     options={[
-                      { value: "in_stock", label: "In stock" },
-                      { value: "out_of_stock", label: "Out of stock" },
-                      { value: "quantity", label: "Quantity" },
+                      { value: "in_stock", label: t("admin.productEdit.stockIn") },
+                      { value: "out_of_stock", label: t("admin.productEdit.stockOut") },
+                      { value: "quantity", label: t("admin.productEdit.stockQuantityMode") },
                     ]}
                   />
                   {(attrs as any).stock_mode === "quantity" ? (
                     <div className="pt-1">
                       <PrelineInput
-                        label="Stock quantity"
+                        label={t("admin.productEdit.stockQuantity")}
                         type="text"
                         inputMode="numeric"
                         wrapperClassName="max-w-xs"
@@ -2374,25 +2414,47 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                     </div>
                   ) : null}
                 </div>
+                <div className="space-y-2 max-w-sm">
+                  <Label>{t("admin.productEdit.primaryCta")}</Label>
+                  <Select
+                    value={(attrs as any).primary_cta === "request_quote" ? "request_quote" : "design_now"}
+                    onValueChange={(v) => setAttrs((a) => ({ ...a, primary_cta: v as "design_now" | "request_quote" }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="design_now">{t("admin.productEdit.primaryCtaDesignNow")}</SelectItem>
+                      <SelectItem value="request_quote">{t("admin.productEdit.primaryCtaRequestQuote")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {t("admin.productEdit.primaryCtaHint")}
+                  </p>
+                </div>
               </div>
           </section>
 
           {form.category_id ? (
           <>
           <section id="customize" className="mt-6 w-full min-w-0 scroll-mt-32">
-            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">Variants & Media</h2>
+            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">{t("admin.productEdit.section.customize")}</h2>
               <div className="w-full space-y-5">
                 <div>
                   <CardHeader className="px-0 pb-2 pt-0">
-                    <CardTitle className="text-sm font-medium">{isDrinkwareCategory || isWallArtCategory || isAccessoriesCategory || isPillowsCategory || isBlanketsCategory || isCandlesCategory ? "Color" : "Color & Size"}</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      {isDrinkwareCategory || isWallArtCategory || isAccessoriesCategory || isPillowsCategory || isBlanketsCategory || isCandlesCategory
+                        ? t("common.color")
+                        : t("admin.productEdit.colorAndSize")}
+                    </CardTitle>
                   </CardHeader>
 
                   <div className={`grid gap-3 ${isDrinkwareCategory || isWallArtCategory || isAccessoriesCategory || isPillowsCategory || isBlanketsCategory || isCandlesCategory ? "md:grid-cols-1" : "md:grid-cols-2"}`}>
                     <div className="rounded-lg border border-gray-200 p-2.5">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-sm font-medium">Color variants</p>
-                          <p className="text-xs text-muted-foreground">{variantColors.size} selected</p>
+                          <p className="text-sm font-medium">{t("admin.productEdit.colorVariants")}</p>
+                          <p className="text-xs text-muted-foreground">{t("admin.productEdit.selectedCount", { count: String(variantColors.size) })}</p>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <ColorPoolPopover
@@ -2406,7 +2468,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                             disabled={variantColors.size === 0}
                             onClick={() => setVariantColors(new Set())}
                           >
-                            Clear
+                            {t("admin.productEdit.clear")}
                           </button>
                         </div>
                       </div>
@@ -2414,7 +2476,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                       {variantColors.size > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           <TooltipProvider delayDuration={200}>
-                            {(selectedColorRows ?? []).slice(0, 24).map((c) => (
+                            {(selectedColorRows ?? []).slice(0, 50).map((c) => (
                               <Tooltip key={c.id}>
                                 <TooltipTrigger asChild>
                                   <button
@@ -2422,7 +2484,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                                     className="group relative h-7 w-7 shrink-0 rounded-full border transition-colors hover:border-foreground/50"
                                     style={{ backgroundColor: c.hex_code }}
                                     onClick={() => setVariantColors((s) => toggleSetValue(s, c.id))}
-                                    aria-label={`Remove ${c.name} (${c.hex_code})`}
+                                    aria-label={t("admin.productEdit.aria.removeColor", { name: c.name, hex: c.hex_code })}
                                   >
                                     <span
                                       className="absolute inset-0 grid place-items-center rounded-full bg-background/75 opacity-0 transition-opacity group-hover:opacity-100"
@@ -2439,10 +2501,14 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                               </Tooltip>
                             ))}
                           </TooltipProvider>
-                          {variantColors.size > 24 ? <span className="text-xs text-muted-foreground">+{variantColors.size - 24} more</span> : null}
+                          {variantColors.size > 50 ? (
+                            <span className="text-xs text-muted-foreground">{t("admin.productEdit.moreCount", { count: String(variantColors.size - 50) })}</span>
+                          ) : null}
                         </div>
                       ) : (
-                        <p className="mt-2 text-xs text-muted-foreground">Select from the color pool (123 colors).</p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {t("admin.productEdit.colorPoolHint")}
+                        </p>
                       )}
                     </div>
 
@@ -2450,8 +2516,8 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                     <div className="rounded-lg border border-gray-200 p-2.5">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-sm font-medium">Size variants</p>
-                          <p className="text-xs text-muted-foreground">{variantSizes.size} selected</p>
+                          <p className="text-sm font-medium">{t("admin.productEdit.sizeVariants")}</p>
+                          <p className="text-xs text-muted-foreground">{t("admin.productEdit.selectedCount", { count: String(variantSizes.size) })}</p>
                         </div>
                         <button
                           type="button"
@@ -2459,16 +2525,16 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                           disabled={variantSizes.size === 0}
                           onClick={() => setVariantSizes(new Set())}
                         >
-                          Clear
+                          {t("admin.productEdit.clear")}
                         </button>
                       </div>
 
                       <div className="mt-2">
                         <MultiSelectField
-                          label="Size"
+                          label={t("admin.productEdit.sizeLabel")}
                           value={(sizes ?? []).filter((s: any) => variantSizes.has(s.id)).map((s: any) => String(s.id))}
                           options={(sizes ?? []).map((s: any) => ({ label: String(s.name), value: String(s.id) }))}
-                          placeholder="Select sizes…"
+                          placeholder={t("admin.productEdit.sizePlaceholder")}
                           onChange={(next) => setVariantSizes(new Set(next))}
                           searchable
                           hideLabel
@@ -2483,13 +2549,13 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 <div className="w-full space-y-5">
                   <div className="w-full min-w-0">
                     <CardHeader className="px-0 pb-2 pt-0">
-                      <CardTitle className="text-sm font-medium">Product images (Store / Catalog)</CardTitle>
+                      <CardTitle className="text-sm font-medium">{t("admin.productEdit.productImagesTitle")}</CardTitle>
                       <p className="text-xs text-muted-foreground">
-                        Ürün sayfası ve katalogda kullanılır. İlk görsel kapak; video yüklerseniz 3. sırada otomatik oynar, yoksa galeri görselleri gösterilir. Sürükleyerek sıralayabilirsiniz.
+                        {t("admin.productEdit.productImagesHint")}
                       </p>
                       {uploadProgress?.kind === "gallery" && (
                         <p className="text-sm font-medium text-primary mt-1" aria-live="polite">
-                          Yükleniyor %{uploadProgress.percent}
+                          {t("admin.productEdit.loadingPercent", { percent: String(uploadProgress.percent) })}
                         </p>
                       )}
                     </CardHeader>
@@ -2518,13 +2584,13 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                                 className="sr-only"
                                 onChange={(e) => {
                                   const files = Array.from(e.target.files ?? []);
-                                  files.forEach((f) => handleUpload(f, "gallery").catch((err) => toast.error(err?.message ?? "Upload failed")));
+                                  files.forEach((f) => handleUpload(f, "gallery").catch((err) => toast.error(err?.message ?? t("admin.productEdit.toast.uploadFailed"))));
                                   e.target.value = "";
                                 }}
                               />
                               <ImagePlus className="mb-2 h-10 w-10 text-muted-foreground" aria-hidden />
-                              <span className="text-sm font-medium text-muted-foreground">Resim yüklemek için tıklayın veya sürükleyip bırakın</span>
-                              <span className="mt-1 text-xs text-muted-foreground">Birden fazla resim seçebilirsiniz</span>
+                              <span className="text-sm font-medium text-muted-foreground">{t("admin.productEdit.galleryUploadHint")}</span>
+                              <span className="mt-1 text-xs text-muted-foreground">{t("admin.productEdit.galleryUploadMultiple")}</span>
                             </label>
                           ) : (
                           <div className="grid w-full min-w-0 grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
@@ -2559,7 +2625,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                                             className="h-7 text-xs"
                                             onClick={() => setAttrs((a) => ({ ...a, video_url: undefined }))}
                                           >
-                                            Kaldır
+                                            {t("common.remove")}
                                           </Button>
                                         </div>
                                       </div>
@@ -2580,7 +2646,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                                       className="flex h-full min-h-0 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 transition-colors hover:border-muted-foreground/50 hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                     >
                                       <ImagePlus className="mb-1 h-6 w-6 shrink-0 text-muted-foreground" aria-hidden />
-                                      <span className="text-xs font-medium text-muted-foreground">Upload</span>
+                                      <span className="text-xs font-medium text-muted-foreground">{t("admin.productEdit.upload")}</span>
                                     </button>
                                   </div>
                                 </>
@@ -2593,14 +2659,14 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                       </DndContext>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Mockups (per view) are not from this gallery. Set them by opening the product in the Designer and uploading mockups, or in the View editor.
+                      {t("admin.productEdit.mockupHint")}
                     </p>
                   </div>
 
                   <div>
                     <CardHeader className="px-0 pb-2 pt-0">
-                      <CardTitle className="text-sm font-medium">Size Guide</CardTitle>
-                      <p className="text-xs text-muted-foreground">Single image shown when the customer opens the Size Guide on the product page.</p>
+                      <CardTitle className="text-sm font-medium">{t("admin.productEdit.sizeGuideTitle")}</CardTitle>
+                      <p className="text-xs text-muted-foreground">{t("admin.productEdit.sizeGuideHint")}</p>
                     </CardHeader>
                     <div className="mt-4">
                       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 max-w-xs">
@@ -2618,12 +2684,12 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
-                                handleUpload(file, "size_guide").catch((err) => toast.error(err?.message ?? "Upload failed"));
+                                handleUpload(file, "size_guide").catch((err) => toast.error(err?.message ?? t("admin.productEdit.toast.uploadFailed")));
                                 e.target.value = "";
                               }}
                             />
                             <ImagePlus className="mb-1 h-6 w-6 text-muted-foreground" aria-hidden />
-                            <span className="text-xs font-medium text-muted-foreground">Upload (1 image)</span>
+                            <span className="text-xs font-medium text-muted-foreground">{t("admin.productEdit.uploadOneImage")}</span>
                           </label>
                         )}
                       </div>
@@ -2632,13 +2698,13 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
 
                   <div>
                     <CardHeader className="px-0 pb-2 pt-0">
-                      <CardTitle className="text-sm font-medium">Video</CardTitle>
+                      <CardTitle className="text-sm font-medium">{t("admin.productEdit.videoTitle")}</CardTitle>
                       <p className="text-xs text-muted-foreground">
-                        Galeride 3. sırada otomatik oynar. Yüklemezseniz 3. sırada üçüncü görsel gösterilir.
+                        {t("admin.productEdit.videoHint")}
                       </p>
                       {uploadProgress?.kind === "video" && (
                         <p className="text-sm font-medium text-primary mt-1" aria-live="polite">
-                          Yükleniyor %{uploadProgress.percent}
+                          {t("admin.productEdit.loadingPercent", { percent: String(uploadProgress.percent) })}
                         </p>
                       )}
                     </CardHeader>
@@ -2659,7 +2725,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                                 className="h-7 text-xs"
                                 onClick={() => setAttrs((a) => ({ ...a, video_url: undefined }))}
                               >
-                                Kaldır
+                                {t("common.remove")}
                               </Button>
                             </div>
                           </div>
@@ -2670,8 +2736,8 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                             className="flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 transition-colors hover:border-muted-foreground/50 hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                           >
                             <Video className="mb-1 h-8 w-8 shrink-0 text-muted-foreground" aria-hidden />
-                            <span className="text-xs font-medium text-muted-foreground">Video yükle</span>
-                            <span className="mt-0.5 text-xs text-muted-foreground">Galeride 3. sırada oynar</span>
+                            <span className="text-xs font-medium text-muted-foreground">{t("admin.productEdit.uploadVideo")}</span>
+                            <span className="mt-0.5 text-xs text-muted-foreground">{t("admin.productEdit.videoPlaysThird")}</span>
                           </button>
                         )}
                       </div>
@@ -2684,17 +2750,17 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
           </section>
 
           <section id="unit_price" className="mt-6 scroll-mt-32">
-            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">Price</h2>
+            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">{t("admin.productEdit.section.price")}</h2>
             <div className="space-y-3">
-              <UnitPriceTiersEditor value={unitPriceTiers} onChange={setUnitPriceTiers} currency="USD" />
+              <UnitPriceTiersEditor value={unitPriceTiers} onChange={setUnitPriceTiers} currency={form.currency} />
             </div>
           </section>
 
           <section id="customization_options" className="mt-6 scroll-mt-32">
-            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">Customization</h2>
+            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">{t("admin.productEdit.section.customization")}</h2>
               <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0 mb-6">
                 <MultiSelectField
-                  label="Decoration method"
+                  label={t("admin.productEdit.decorationMethod")}
                   value={Array.isArray((attrs as any).decoration_method)
                     ? ((attrs as any).decoration_method as string[])
                     : typeof (attrs as any).decoration_method === "string" && (attrs as any).decoration_method
@@ -2710,22 +2776,22 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 />
 
                 <MultiSelectField
-                  label="Deliver-to Regions"
+                  label={t("admin.productEdit.deliveryRegions")}
                   value={Array.isArray((attrs as any).region)
                     ? ((attrs as any).region as string[])
                     : typeof (attrs as any).region === "string" && (attrs as any).region
                       ? [String((attrs as any).region)]
                       : []}
                   options={[
-                    { label: "All countries", value: "ALL_COUNTRIES" },
-                    ...(regionOptions?.length ? regionOptions : getFilterOptionsAny(["Region", "Regions", "Deliver-to Regions", "Country"])),
+                    { label: t("admin.productEdit.allCountries"), value: "ALL_COUNTRIES" },
+                    ...FULFILLMENT_COUNTRIES.filter((c) => c !== "Other").map((c) => ({ label: c, value: c })),
                   ]}
                   allowCustom={false}
                   onChange={(next) => setAttrs((a) => ({ ...a, region: next }))}
                 />
 
                 <div className="space-y-2">
-                  <Label>Fulfillment From (Country) — single choice</Label>
+                  <Label>{t("admin.productEdit.fulfillmentCountry")}</Label>
                   <Select
                     value={
                       (() => {
@@ -2743,21 +2809,24 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select country" />
+                      <SelectValue placeholder={t("admin.productEdit.selectCountry")} />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Select</SelectItem>
-                      {FULFILLMENT_COUNTRIES.filter((c) => c !== "Other").map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
+                      <SelectContent>
+                        <SelectItem value="__none__">{t("admin.productEdit.selectOption")}</SelectItem>
+                        {FULFILLMENT_COUNTRIES.filter((c) => c !== "Other").map((c) => {
+                          const flag = getCountryFlag(c);
+                          return (
+                            <SelectItem key={c} value={c}>
+                              {flag ? `${flag} ${c}` : c}
+                            </SelectItem>
+                          );
+                        })}
+                        <SelectItem value="Other">{t("admin.productEdit.other")}</SelectItem>
+                      </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Fulfillment From (City) — single choice</Label>
+                  <Label>{t("admin.productEdit.fulfillmentCity")}</Label>
                   <Select
                     value={
                       (() => {
@@ -2782,10 +2851,10 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select city" />
+                      <SelectValue placeholder={t("admin.productEdit.selectCity")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Select</SelectItem>
+                      <SelectItem value="__none__">{t("admin.productEdit.selectOption")}</SelectItem>
                       {getCitiesForCountry(
                         (() => {
                           const v = (attrs as any).fulfillment_from;
@@ -2805,9 +2874,9 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
               {/* Print Area: full width, outside grid so no max-w-sm constraint */}
               <div className="space-y-4">
                 <div>
-                  <Label className="text-base">Print Area (print area prices)</Label>
+                  <Label className="text-base">{t("admin.productEdit.price.printAreaTitle")}</Label>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Enter a name and price per technique for each view (e.g. Front, Back). Prices are shown on the product page when the customer selects a technique.
+                    {t("admin.productEdit.price.printAreaHint")}
                   </p>
                 </div>
                 <div className="max-w-[72rem] w-full rounded-lg border border-gray-200 min-w-0 overflow-x-auto">
@@ -2817,19 +2886,21 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                         {printAreaTechniqueLabels.map((_, ti) => (
                           <col key={ti} style={{ width: "11rem", minWidth: "10rem" }} />
                         ))}
+                        <col style={{ width: "12rem", minWidth: "10rem" }} />
                         <col style={{ width: "7rem", minWidth: "6rem" }} />
                         <col style={{ width: "3.5rem" }} />
                       </colgroup>
                       <thead>
                         <tr className="border-b border-gray-200 bg-gray-50">
-                          <th className="text-left py-4 px-4 font-semibold text-gray-700 text-base whitespace-nowrap">View name</th>
+                          <th className="text-left py-4 px-4 font-semibold text-gray-700 text-base whitespace-nowrap">{t("admin.productEdit.price.viewName")}</th>
                           {printAreaTechniqueLabels.map((label, ti) => (
                             <th key={ti} className="text-left py-4 px-4 font-semibold text-gray-700 min-w-[10rem]">
-                              <span className="block text-sm font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">Price (USD)</span>
+                              <span className="block text-sm font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">{t("admin.productEdit.price.priceCurrency", { currency: form.currency })}</span>
                               <span className="block text-gray-700 mt-0.5 break-words">{label}</span>
                             </th>
                           ))}
-                          <th className="text-left py-4 px-4 font-semibold text-gray-700 text-base whitespace-nowrap">Image</th>
+                          <th className="text-left py-4 px-4 font-semibold text-gray-700 text-base whitespace-nowrap">{t("admin.productEdit.price.printAreaColors")}</th>
+                          <th className="text-left py-4 px-4 font-semibold text-gray-700 text-base whitespace-nowrap">{t("admin.productEdit.price.image")}</th>
                           <th className="py-4 px-2 w-14" />
                         </tr>
                       </thead>
@@ -2841,7 +2912,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                             <tr key={index} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
                               <td className="py-4 px-4 align-middle">
                                 <Input
-                                  placeholder="Front, Back…"
+                                  placeholder={t("admin.productEdit.price.viewNamePlaceholder")}
                                   value={item.name}
                                   onChange={(e) => {
                                     const list = (attrs as any).print_area_views ?? [];
@@ -2875,10 +2946,29 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                                       }}
                                       className="h-10 w-full max-w-full rounded-lg border border-gray-200 bg-white px-3 text-right text-base font-medium tabular-nums focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                                     />
-                                    <span className="shrink-0 text-sm text-muted-foreground">USD</span>
+                                    <span className="shrink-0 text-sm text-muted-foreground">{form.currency}</span>
                                   </div>
                                 </td>
                               ))}
+                              <td className="py-4 px-4 align-middle">
+                                <MultiSelectField
+                                  label=""
+                                  hideLabel
+                                  value={item.color_ids}
+                                  options={(selectedColorRows ?? []).map((c) => ({ label: c.name, value: c.id }))}
+                                  onChange={(next) => {
+                                    const list = (attrs as any).print_area_views ?? [];
+                                    const arr = Array.isArray(list) ? list.slice(0, 10) : [];
+                                    const nextArr = [...arr];
+                                    const cur = nextArr[index] ?? {};
+                                    nextArr[index] = { ...cur, color_ids: next };
+                                    setAttrs((a) => ({ ...a, print_area_views: nextArr }));
+                                  }}
+                                  placeholder={selectedColorRows?.length ? t("admin.productEdit.price.printAreaColorsPlaceholder") : t("admin.productEdit.price.printAreaColorsNoColors")}
+                                  allowCustom={false}
+                                  className="min-w-[10rem]"
+                                />
+                              </td>
                               <td className="py-4 px-4 align-middle">
                                 {productId && productViewsRows[index] ? (
                                   <div
@@ -2896,7 +2986,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                                       }
                                     }}
                                     className="flex shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50/50 h-20 w-20 hover:border-gray-300 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 cursor-pointer"
-                                    title="Görsel eklemek veya değiştirmek için tıklayın"
+                                    title={t("admin.productEdit.price.imageUploadTitle")}
                                   >
                                     {(productViewsRows[index] as { mockup_image_url?: string | null }).mockup_image_url ? (
                                       <div className="relative h-full w-full rounded-md overflow-hidden group">
@@ -2922,13 +3012,13 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                                                 .eq("id", viewId);
                                               if (error) throw error;
                                               await refetchProductViews();
-                                              toast.success("Görsel kaldırıldı");
+                                              toast.success(t("admin.productEdit.price.toast.imageRemoved"));
                                             } catch (err: any) {
-                                              toast.error(err?.message || "Görsel kaldırılamadı");
+                                              toast.error(err?.message || t("admin.productEdit.price.toast.imageRemoveFailed"));
                                             }
                                           }}
                                           className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm hover:bg-destructive hover:text-white hover:border-destructive transition-colors"
-                                          title="Görseli kaldır"
+                                          title={t("admin.productEdit.price.removeImageTitle")}
                                         >
                                           <X className="h-3 w-3" />
                                         </button>
@@ -2936,13 +3026,13 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                                     ) : (
                                       <>
                                         <Upload className="h-6 w-6 text-gray-400 mb-0.5" />
-                                        <span className="text-[10px] text-gray-500 font-medium">Ekle</span>
+                                        <span className="text-[10px] text-gray-500 font-medium">{t("admin.productEdit.price.addImage")}</span>
                                       </>
                                     )}
                                   </div>
                                 ) : productId && index < (attrs as any).print_area_views?.length ? (
-                                  <span className="text-xs text-amber-600" title="Yeni baskı alanı: önce kaydedin, sonra görsel yükleyebilirsiniz">
-                                    Önce kaydedin
+                                  <span className="text-xs text-amber-600" title={t("admin.productEdit.price.newAreaSaveFirstTitle")}>
+                                    {t("admin.productEdit.price.saveFirst")}
                                   </span>
                                 ) : (
                                   <span className="text-xs text-gray-400">—</span>
@@ -2979,8 +3069,8 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                             const arr = Array.isArray(list) ? list.slice(0, 10) : [];
                             const techniqueList = Array.isArray((attrs as any).decoration_method) ? (attrs as any).decoration_method as string[] : [];
                             const newItem = techniqueList.length > 0
-                              ? { name: "", pricesByTechnique: Object.fromEntries(techniqueList.map((t) => [t, ""])) }
-                              : { name: "", price: "" };
+                              ? { name: "", pricesByTechnique: Object.fromEntries(techniqueList.map((t) => [t, ""])), color_ids: [] as string[] }
+                              : { name: "", price: "", color_ids: [] as string[] };
                             setAttrs((a) => ({ ...a, print_area_views: [...arr, newItem] }));
                             if (productId) {
                               const defaultArea = { top: 30, left: 30, width: 40, height: 40 };
@@ -2995,15 +3085,15 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                                 mockup_image_url: null,
                               });
                               if (error) {
-                                toast.error(error.message ?? "Görünüm eklenemedi");
+                                toast.error(error.message ?? t("admin.productEdit.price.toast.viewAddFailed"));
                                 return;
                               }
                               await refetchProductViews();
-                              toast.success("Görünüm eklendi; görsel yükleyebilirsiniz.");
+                              toast.success(t("admin.productEdit.price.toast.viewAdded"));
                             }
                           }}
                         >
-                          Add print area
+                          {t("admin.productEdit.price.addPrintArea")}
                         </Button>
                       </div>
                     ) : null}
@@ -3012,37 +3102,37 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
           </section>
 
           <section id="product_details" className="mt-6 scroll-mt-32">
-            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">Product details</h2>
+            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">{t("admin.productEdit.productDetailsTitle")}</h2>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Description</Label>
+                  <Label>{t("admin.productEdit.description")}</Label>
                   <RichTextEditor value={description} onChange={setDescription} />
                 </div>
 
                 {isDrinkwareCategory && (
                   <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0">
                     <MultiSelectField
-                      label="Product type"
+                      label={t("admin.productEdit.productType")}
                       value={Array.isArray((attrs as any).drinkware_type) ? ((attrs as any).drinkware_type as string[]) : []}
                       options={drinkwareWallArtOptions?.drinkware_type ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, drinkware_type: next }))}
                     />
                     <MultiSelectField
-                      label="Capacity"
+                      label={t("admin.productEdit.capacity")}
                       value={Array.isArray((attrs as any).drinkware_capacity) ? ((attrs as any).drinkware_capacity as string[]) : []}
                       options={drinkwareWallArtOptions?.drinkware_capacity ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, drinkware_capacity: next }))}
                     />
                     <div className="space-y-2 max-w-sm">
-                      <Label>Lid type</Label>
+                      <Label>{t("admin.productEdit.lidType")}</Label>
                       <Select
                         value={typeof (attrs as any).drinkware_lid_type === "string" ? ((attrs as any).drinkware_lid_type as string) : ""}
                         onValueChange={(v) => setAttrs((a) => ({ ...a, drinkware_lid_type: v || null }))}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select lid type" />
+                          <SelectValue placeholder={t("admin.productEdit.selectLidType")} />
                         </SelectTrigger>
                         <SelectContent>
                           {(drinkwareWallArtOptions?.drinkware_lid_type ?? []).map((opt) => (
@@ -3053,40 +3143,33 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                         </SelectContent>
                       </Select>
                     </div>
-                    <MultiSelectField
-                      label="Material"
-                      value={Array.isArray((attrs as any).material) ? ((attrs as any).material as string[]) : []}
-                      options={materialOptions?.length ? materialOptions : getFilterOptionsAny(["Material", "material", "Materials"])}
-                      allowCustom={false}
-                      onChange={(next) => setAttrs((a) => ({ ...a, material: next }))}
-                    />
                   </div>
                 )}
 
                 {isWallArtCategory && (
                   <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0">
                     <MultiSelectField
-                      label="Product type"
+                      label={t("admin.productEdit.productType")}
                       value={Array.isArray((attrs as any).wall_art_type) ? ((attrs as any).wall_art_type as string[]) : []}
                       options={drinkwareWallArtOptions?.wall_art_type ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, wall_art_type: next }))}
                     />
                     <MultiSelectField
-                      label="Size"
+                      label={t("admin.productEdit.size")}
                       value={Array.isArray((attrs as any).wall_art_size) ? ((attrs as any).wall_art_size as string[]) : []}
                       options={drinkwareWallArtOptions?.wall_art_size ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, wall_art_size: next }))}
                     />
                     <div className="space-y-2 max-w-sm">
-                      <Label>Orientation</Label>
+                      <Label>{t("admin.productEdit.orientation")}</Label>
                       <Select
                         value={typeof (attrs as any).wall_art_orientation === "string" ? ((attrs as any).wall_art_orientation as string) : ""}
                         onValueChange={(v) => setAttrs((a) => ({ ...a, wall_art_orientation: v || null }))}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select orientation" />
+                          <SelectValue placeholder={t("admin.productEdit.selectOrientation")} />
                         </SelectTrigger>
                         <SelectContent>
                           {(drinkwareWallArtOptions?.wall_art_orientation ?? []).map((opt) => (
@@ -3098,13 +3181,13 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                       </Select>
                     </div>
                     <div className="space-y-2 max-w-sm">
-                      <Label>Frame style</Label>
+                      <Label>{t("admin.productEdit.frameStyle")}</Label>
                       <Select
                         value={typeof (attrs as any).wall_art_frame_style === "string" ? ((attrs as any).wall_art_frame_style as string) : ""}
                         onValueChange={(v) => setAttrs((a) => ({ ...a, wall_art_frame_style: v || null }))}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select frame style" />
+                          <SelectValue placeholder={t("admin.productEdit.selectFrameStyle")} />
                         </SelectTrigger>
                         <SelectContent>
                           {(drinkwareWallArtOptions?.wall_art_frame_style ?? []).map((opt) => (
@@ -3116,7 +3199,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                       </Select>
                     </div>
                     <MultiSelectField
-                      label="Material"
+                      label={t("admin.productEdit.material")}
                       value={Array.isArray((attrs as any).material) ? ((attrs as any).material as string[]) : []}
                       options={materialOptions?.length ? materialOptions : getFilterOptionsAny(["Material", "material", "Materials"])}
                       allowCustom={false}
@@ -3128,14 +3211,14 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 {isToteBagsCategory && (
                   <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0">
                     <MultiSelectField
-                      label="Bag type"
+                      label={t("admin.productEdit.bagType")}
                       value={Array.isArray((attrs as any).accessory_bag_type) ? ((attrs as any).accessory_bag_type as string[]) : []}
                       options={accessoriesHomeLivingOptions?.accessory_bag_type ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, accessory_bag_type: next }))}
                     />
                     <MultiSelectField
-                      label="Material"
+                      label={t("admin.productEdit.material")}
                       value={Array.isArray((attrs as any).material) ? ((attrs as any).material as string[]) : []}
                       options={materialOptions?.length ? materialOptions : getFilterOptionsAny(["Material", "material", "Materials"])}
                       allowCustom={false}
@@ -3147,14 +3230,14 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 {isHatsCapsCategory && (
                   <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0">
                     <MultiSelectField
-                      label="Hat type"
+                      label={t("admin.productEdit.hatType")}
                       value={Array.isArray((attrs as any).accessory_hat_type) ? ((attrs as any).accessory_hat_type as string[]) : []}
                       options={accessoriesHomeLivingOptions?.accessory_hat_type ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, accessory_hat_type: next }))}
                     />
                     <MultiSelectField
-                      label="Material"
+                      label={t("admin.productEdit.material")}
                       value={Array.isArray((attrs as any).material) ? ((attrs as any).material as string[]) : []}
                       options={materialOptions?.length ? materialOptions : getFilterOptionsAny(["Material", "material", "Materials"])}
                       allowCustom={false}
@@ -3166,14 +3249,14 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 {isPhoneCasesCategory && (
                   <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0">
                     <MultiSelectField
-                      label="Device model"
+                      label={t("admin.productEdit.deviceModel")}
                       value={Array.isArray((attrs as any).accessory_phone_model) ? ((attrs as any).accessory_phone_model as string[]) : []}
                       options={accessoriesHomeLivingOptions?.accessory_phone_model ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, accessory_phone_model: next }))}
                     />
                     <MultiSelectField
-                      label="Material"
+                      label={t("admin.productEdit.material")}
                       value={Array.isArray((attrs as any).material) ? ((attrs as any).material as string[]) : []}
                       options={materialOptions?.length ? materialOptions : getFilterOptionsAny(["Material", "material", "Materials"])}
                       allowCustom={false}
@@ -3185,14 +3268,14 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 {isSocksCategory && (
                   <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0">
                     <MultiSelectField
-                      label="Sock type"
+                      label={t("admin.productEdit.sockType")}
                       value={Array.isArray((attrs as any).accessory_sock_type) ? ((attrs as any).accessory_sock_type as string[]) : []}
                       options={accessoriesHomeLivingOptions?.accessory_sock_type ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, accessory_sock_type: next }))}
                     />
                     <MultiSelectField
-                      label="Material"
+                      label={t("admin.productEdit.material")}
                       value={Array.isArray((attrs as any).material) ? ((attrs as any).material as string[]) : []}
                       options={materialOptions?.length ? materialOptions : getFilterOptionsAny(["Material", "material", "Materials"])}
                       allowCustom={false}
@@ -3204,21 +3287,21 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 {isPillowsCategory && (
                   <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0">
                     <MultiSelectField
-                      label="Pillow type"
+                      label={t("admin.productEdit.pillowType")}
                       value={Array.isArray((attrs as any).pillow_type) ? ((attrs as any).pillow_type as string[]) : []}
                       options={accessoriesHomeLivingOptions?.pillow_type ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, pillow_type: next }))}
                     />
                     <MultiSelectField
-                      label="Pillow size"
+                      label={t("admin.productEdit.pillowSize")}
                       value={Array.isArray((attrs as any).pillow_size) ? ((attrs as any).pillow_size as string[]) : []}
                       options={accessoriesHomeLivingOptions?.pillow_size ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, pillow_size: next }))}
                     />
                     <MultiSelectField
-                      label="Material"
+                      label={t("admin.productEdit.material")}
                       value={Array.isArray((attrs as any).material) ? ((attrs as any).material as string[]) : []}
                       options={materialOptions?.length ? materialOptions : getFilterOptionsAny(["Material", "material", "Materials"])}
                       allowCustom={false}
@@ -3230,21 +3313,21 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 {isBlanketsCategory && (
                   <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0">
                     <MultiSelectField
-                      label="Blanket type"
+                      label={t("admin.productEdit.blanketType")}
                       value={Array.isArray((attrs as any).blanket_type) ? ((attrs as any).blanket_type as string[]) : []}
                       options={accessoriesHomeLivingOptions?.blanket_type ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, blanket_type: next }))}
                     />
                     <MultiSelectField
-                      label="Blanket size"
+                      label={t("admin.productEdit.blanketSize")}
                       value={Array.isArray((attrs as any).blanket_size) ? ((attrs as any).blanket_size as string[]) : []}
                       options={accessoriesHomeLivingOptions?.blanket_size ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, blanket_size: next }))}
                     />
                     <MultiSelectField
-                      label="Material"
+                      label={t("admin.productEdit.material")}
                       value={Array.isArray((attrs as any).material) ? ((attrs as any).material as string[]) : []}
                       options={materialOptions?.length ? materialOptions : getFilterOptionsAny(["Material", "material", "Materials"])}
                       allowCustom={false}
@@ -3256,14 +3339,14 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 {isCandlesCategory && (
                   <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0">
                     <MultiSelectField
-                      label="Candle type"
+                      label={t("admin.productEdit.candleType")}
                       value={Array.isArray((attrs as any).candle_type) ? ((attrs as any).candle_type as string[]) : []}
                       options={accessoriesHomeLivingOptions?.candle_type ?? []}
                       allowCustom={false}
                       onChange={(next) => setAttrs((a) => ({ ...a, candle_type: next }))}
                     />
                     <MultiSelectField
-                      label="Material"
+                      label={t("admin.productEdit.material")}
                       value={Array.isArray((attrs as any).material) ? ((attrs as any).material as string[]) : []}
                       options={materialOptions?.length ? materialOptions : getFilterOptionsAny(["Material", "material", "Materials"])}
                       allowCustom={false}
@@ -3275,7 +3358,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 {!isDrinkwareCategory && !isWallArtCategory && !isToteBagsCategory && !isHatsCapsCategory && !isPhoneCasesCategory && !isSocksCategory && !isPillowsCategory && !isBlanketsCategory && !isCandlesCategory && (
                 <div className="grid gap-4 md:grid-cols-2 [&>div]:max-w-sm [&>div]:min-w-0">
                   <MultiSelectField
-                    label="Fit"
+                    label={t("admin.productEdit.fit")}
                     value={Array.isArray((attrs as any).fit)
                       ? ((attrs as any).fit as string[])
                       : typeof (attrs as any).fit === "string" && (attrs as any).fit
@@ -3287,7 +3370,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                   />
 
                   <MultiSelectField
-                    label="Thickness"
+                    label={t("admin.productEdit.thickness")}
                     value={Array.isArray((attrs as any).thickness)
                       ? ((attrs as any).thickness as string[])
                       : typeof (attrs as any).thickness === "string" && (attrs as any).thickness
@@ -3299,7 +3382,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                   />
 
                   <MultiSelectField
-                    label="Material"
+                    label={t("admin.productEdit.material")}
                     value={Array.isArray((attrs as any).material) ? ((attrs as any).material as string[]) : []}
                     options={materialOptions?.length ? materialOptions : getFilterOptionsAny(["Material", "material", "Materials"])}
                     allowCustom={false}
@@ -3307,9 +3390,9 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                   />
 
                   <div className="space-y-2">
-                    <Label>Fabric Weight</Label>
+                    <Label>{t("admin.productEdit.fabricWeight")}</Label>
                     <MultiSelectField
-                      label="Fabric Weight"
+                      label={t("admin.productEdit.fabricWeight")}
                       hideLabel
                       value={Array.isArray((attrs as any).fabric_weight)
                         ? ((attrs as any).fabric_weight as string[])
@@ -3323,58 +3406,8 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                     />
                   </div>
 
-                  <div className="space-y-2 max-w-sm">
-                    <Label>Elasticity</Label>
-                    <Select
-                      value={typeof (attrs as any).elasticity === "string" ? ((attrs as any).elasticity as string) : ""}
-                      onValueChange={(v) => setAttrs((a) => ({ ...a, elasticity: v || null }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select elasticity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getFilterOptionsAny(["Elasticity", "elasticity"]).length ? (
-                          getFilterOptionsAny(["Elasticity", "elasticity"]).map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="__none" disabled>
-                            No elasticity options
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2 max-w-sm">
-                    <Label>Breathability</Label>
-                    <Select
-                      value={typeof (attrs as any).breathability === "string" ? ((attrs as any).breathability as string) : ""}
-                      onValueChange={(v) => setAttrs((a) => ({ ...a, breathability: v || null }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select breathability" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getFilterOptionsAny(["Breathability", "breathability"]).length ? (
-                          getFilterOptionsAny(["Breathability", "breathability"]).map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="__none" disabled>
-                            No breathability options
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
                   <MultiSelectField
-                    label="Neckline"
+                    label={t("admin.productEdit.neckline")}
                     value={Array.isArray((attrs as any).neckline) ? ((attrs as any).neckline as string[]) : []}
                     options={necklineOptions?.length ? necklineOptions : getFilterOptionsAny(["Neckline", "Neck Line", "Neckline Type"]) }
                     allowCustom={false}
@@ -3382,7 +3415,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                   />
 
                   <MultiSelectField
-                    label="Sleeve Style"
+                    label={t("admin.productEdit.sleeveStyle")}
                     value={Array.isArray((attrs as any).sleeve_style) ? ((attrs as any).sleeve_style as string[]) : []}
                     options={
                       sleeveStyleOptions?.length
@@ -3394,7 +3427,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                   />
 
                   <MultiSelectField
-                    label="Sleeve Length"
+                    label={t("admin.productEdit.sleeveLength")}
                     value={
                       Array.isArray((attrs as any).sleeve_length)
                         ? ((attrs as any).sleeve_length as string[])
@@ -3419,7 +3452,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                   />
 
                   <MultiSelectField
-                    label="Season"
+                    label={t("admin.productEdit.season")}
                     value={Array.isArray((attrs as any).season) ? ((attrs as any).season as string[]) : []}
                     options={seasonOptions ?? []}
                     allowCustom={false}
@@ -3427,7 +3460,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                   />
 
                   <MultiSelectField
-                    label="Style"
+                    label={t("admin.productEdit.style")}
                     value={
                       Array.isArray((attrs as any).style)
                         ? ((attrs as any).style as string[])
@@ -3441,7 +3474,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                   />
 
                   <MultiSelectField
-                    label="Elements"
+                    label={t("admin.productEdit.details")}
                     value={Array.isArray((attrs as any).elements) ? ((attrs as any).elements as string[]) : []}
                     options={elementsOptions ?? []}
                     allowCustom
@@ -3451,7 +3484,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
                 )}
 
                 <div className="space-y-2">
-                  <Label>Care Instructions</Label>
+                  <Label>{t("admin.productEdit.careInstructions")}</Label>
                   <Textarea
                     value={typeof (attrs as any).care_instructions === "string" ? ((attrs as any).care_instructions as string) : ""}
                     onChange={(e) => setAttrs((a) => ({ ...a, care_instructions: e.target.value }))}
@@ -3461,7 +3494,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
           </section>
 
           <section id="fulfillment" className="mt-6 scroll-mt-32">
-            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">Delivery times</h2>
+            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">{t("admin.productEdit.section.fulfillment")}</h2>
               <ProductShippingOverrideFields
                 value={shippingOverride}
                 onChange={setShippingOverride}
@@ -3470,7 +3503,7 @@ export default function AdminProductEdit({ mode }: { mode: Mode }) {
           </section>
 
           <section id="shipping" className="mt-6 scroll-mt-32">
-            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">Shipping</h2>
+            <h2 className="mb-3 border-b border-gray-200 pb-1.5 text-base font-semibold text-foreground">{t("admin.productEdit.section.shipping")}</h2>
               <ProductShippingOverrideFields
                 value={shippingOverride}
                 onChange={setShippingOverride}

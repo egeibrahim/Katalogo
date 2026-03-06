@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 type Props = {
   breadcrumb: ReactNode;
@@ -21,6 +22,8 @@ export function ProductEditHeader({
   onSave,
   saving,
 }: Props) {
+  const { t } = useI18n();
+
   return (
     <header className="mb-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm md:p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -32,10 +35,10 @@ export function ProductEditHeader({
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 md:pl-4">
           {statusControl}
           <Button size="sm" variant="outline" onClick={onBack}>
-            Back
+            {t("common.back")}
           </Button>
           <Button size="sm" onClick={onSave} disabled={Boolean(saving)}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("common.saving") : t("common.save")}
           </Button>
         </div>
       </div>

@@ -12,6 +12,7 @@ import { useUserMembership } from "@/hooks/useUserMembership";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { canCreateOwnCatalog } from "@/lib/planFeatures";
 import { slugify } from "@/lib/slug";
+import { sanitizeStorageFileName, uploadPublicFile } from "@/lib/storage";
 import { toast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -37,6 +39,8 @@ type Catalog = {
   name: string;
   slug: string;
   contact_email: string;
+  contact_phone: string | null;
+  contact_location: string | null;
   is_public: boolean;
   logo_url: string | null;
   cover_image_url: string | null;
@@ -51,6 +55,8 @@ const formSchema = z.object({
     .min(1, "Slug zorunlu")
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug sadece a-z, 0-9 ve '-' içermeli"),
   contact_email: z.string().email("Geçerli bir e-posta girin"),
+  contact_phone: z.string().optional().or(z.literal("")),
+  contact_location: z.string().optional().or(z.literal("")),
   is_public: z.boolean().default(false),
   logo_url: z.string().url("Geçerli bir URL girin").optional().or(z.literal("")),
   cover_image_url: z.string().url("Geçerli bir URL girin").optional().or(z.literal("")),
@@ -63,6 +69,8 @@ function normalizeCatalogPayload(values: FormValues) {
     name: values.name.trim(),
     slug: values.slug.trim(),
     contact_email: values.contact_email.trim(),
+    contact_phone: values.contact_phone?.trim() ? values.contact_phone.trim() : null,
+    contact_location: values.contact_location?.trim() ? values.contact_location.trim() : null,
     is_public: values.is_public,
     logo_url: values.logo_url?.trim() ? values.logo_url.trim() : null,
     cover_image_url: values.cover_image_url?.trim() ? values.cover_image_url.trim() : null,
@@ -89,6 +97,7 @@ export default function BusinessCatalogs() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Catalog | null>(null);
   const [deleting, setDeleting] = useState<Catalog | null>(null);
+  const [uploadingAsset, setUploadingAsset] = useState<"logo" | "cover" | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -96,6 +105,8 @@ export default function BusinessCatalogs() {
       name: "",
       slug: "",
       contact_email: "",
+      contact_phone: "",
+      contact_location: "",
       is_public: false,
       logo_url: "",
       cover_image_url: "",
@@ -171,7 +182,16 @@ export default function BusinessCatalogs() {
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({ name: "", slug: "", contact_email: "", is_public: false, logo_url: "", cover_image_url: "" });
+    form.reset({
+      name: "",
+      slug: "",
+      contact_email: "",
+      contact_phone: "",
+      contact_location: "",
+      is_public: false,
+      logo_url: "",
+      cover_image_url: "",
+    });
     setDialogOpen(true);
   };
 
@@ -181,11 +201,43 @@ export default function BusinessCatalogs() {
       name: c.name,
       slug: c.slug,
       contact_email: c.contact_email,
+      contact_phone: c.contact_phone ?? "",
+      contact_location: c.contact_location ?? "",
       is_public: c.is_public,
       logo_url: c.logo_url ?? "",
       cover_image_url: c.cover_image_url ?? "",
     });
     setDialogOpen(true);
+  };
+
+  const uploadCatalogAsset = async (kind: "logo" | "cover", file: File) => {
+    if (!userId) {
+      toast({ title: "Oturum gerekli", variant: "destructive" });
+      return;
+    }
+    setUploadingAsset(kind);
+    try {
+      const slug = form.getValues("slug")?.trim() || slugify(form.getValues("name") || "katalog");
+      const safeName = sanitizeStorageFileName(file.name);
+      const path = `catalogs/${userId}/${slug}/${kind}-${Date.now()}-${safeName}`;
+      const publicUrl = await uploadPublicFile({
+        bucket: "product-mockups",
+        path,
+        file,
+      });
+      form.setValue(kind === "logo" ? "logo_url" : "cover_image_url", publicUrl, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      toast({ title: kind === "logo" ? "Logo yüklendi" : "Cover yüklendi" });
+    } catch (e) {
+      toast({
+        title: (e as { message?: string })?.message ?? "Yükleme başarısız",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingAsset(null);
+    }
   };
 
   if (userId && !allowedCatalog) {
@@ -376,16 +428,62 @@ export default function BusinessCatalogs() {
                 )}
               />
 
+              <FormField
+                control={form.control}
+                name="contact_phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cep telefonu</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="+90 5xx xxx xx xx" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="contact_location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>İletişim / adres</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Şehir, ülke, adres veya iletişim notu" className="min-h-[96px]" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="grid gap-4 md:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="logo_url"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Logo URL</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="https://..." />
-                      </FormControl>
+                      <FormLabel>Logo</FormLabel>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingAsset !== null}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          await uploadCatalogAsset("logo", file);
+                          e.target.value = "";
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {uploadingAsset === "logo" ? "Logo yükleniyor..." : "Logo dosyası yükle"}
+                      </p>
+                      {field.value ? (
+                        <img
+                          src={field.value}
+                          alt="Logo önizleme"
+                          className="h-16 w-full rounded-md border border-border object-contain bg-background"
+                        />
+                      ) : null}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -396,10 +494,28 @@ export default function BusinessCatalogs() {
                   name="cover_image_url"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Cover URL</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="https://..." />
-                      </FormControl>
+                      <FormLabel>Cover</FormLabel>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingAsset !== null}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          await uploadCatalogAsset("cover", file);
+                          e.target.value = "";
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {uploadingAsset === "cover" ? "Cover yükleniyor..." : "Cover dosyası yükle"}
+                      </p>
+                      {field.value ? (
+                        <img
+                          src={field.value}
+                          alt="Cover önizleme"
+                          className="h-16 w-full rounded-md border border-border object-cover"
+                        />
+                      ) : null}
                       <FormMessage />
                     </FormItem>
                   )}

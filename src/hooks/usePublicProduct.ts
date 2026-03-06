@@ -9,6 +9,7 @@ export type PublicProduct = {
   badge: string | null;
   product_code: string | null;
   price_from: number | null;
+  currency: string | null;
   category_id: string | null;
   cover_image_url: string | null;
   thumbnail_url: string | null;
@@ -90,7 +91,7 @@ export function usePublicProductBySlug(slug?: string) {
       const { data, error } = await supabase
         .from("products")
         .select(
-          "id,name,description,slug,badge,product_code,price_from,category_id,cover_image_url,thumbnail_url,meta_title,meta_description,is_active"
+          "id,name,description,slug,badge,product_code,price_from,currency,category_id,cover_image_url,thumbnail_url,meta_title,meta_description,is_active"
         )
         .eq("slug", slug as string)
         .eq("is_active", true)
@@ -109,7 +110,7 @@ export function usePublicProductById(id?: string) {
       const { data, error } = await supabase
         .from("products")
         .select(
-          "id,name,description,slug,badge,product_code,price_from,category_id,cover_image_url,thumbnail_url,meta_title,meta_description,is_active"
+          "id,name,description,slug,badge,product_code,price_from,currency,category_id,cover_image_url,thumbnail_url,meta_title,meta_description,is_active"
         )
         .eq("id", id as string)
         .eq("is_active", true)
@@ -261,6 +262,29 @@ export function usePublicViewColorMockup(productViewId?: string | null, colorId?
       return (data?.mockup_image_url ?? null) as string | null;
     },
     staleTime: 1000 * 60 * 10,
+  });
+}
+
+export type ProductViewColorMockup = {
+  product_view_id: string;
+  color_id: string;
+  mockup_image_url: string | null;
+};
+
+export function usePublicViewColorMockupsByViews(viewIds?: string[] | null, colorId?: string | null) {
+  const idsKey = (viewIds ?? []).join("|");
+  return useQuery({
+    queryKey: ["public", "product_view_color_mockups", "by-views-color", { idsKey, colorId }],
+    enabled: Boolean(colorId && viewIds && viewIds.length > 0),
+    queryFn: async (): Promise<ProductViewColorMockup[]> => {
+      const { data, error } = await supabase
+        .from("product_view_color_mockups")
+        .select("product_view_id,color_id,mockup_image_url")
+        .eq("color_id", colorId as string)
+        .in("product_view_id", (viewIds ?? []) as string[]);
+      if (error) throw error;
+      return (data ?? []) as ProductViewColorMockup[];
+    },
   });
 }
 

@@ -33,7 +33,7 @@ import BusinessCatalogs from "@/pages/business/BusinessCatalogs";
 import BusinessCatalogProducts from "@/pages/business/BusinessCatalogProducts";
 import BusinessProducts from "@/pages/business/BusinessProducts";
 import BusinessCatalog from "@/pages/business/BusinessCatalog";
-import BrandUsers from "@/pages/business/BrandUsers";
+import BusinessQuotes from "@/pages/business/BusinessQuotes";
 import AdminCatalog from "@/pages/admin/AdminCatalog";
 import PublicCatalog from "@/pages/PublicCatalog";
 import PublicCatalogList from "@/pages/PublicCatalogList";
@@ -69,25 +69,61 @@ const App = () => (
               <Route path="/blog" element={<Blog />} />
               <Route path="/brands" element={<PublicCatalogList />} />
               <Route path="/brand/:slug" element={<PublicCatalog />} />
+              <Route path="/brand/:brandSlug/:parentSlug/:categorySlug/:slug" element={<ProductPage />} />
+              <Route path="/product/:slug/:code" element={<ProductPage />} />
               <Route path="/product/:slug" element={<ProductPage />} />
+              <Route path="/:parentSlug/:categorySlug/:slug" element={<ProductPage />} />
+              <Route path="/catalog/:parentSlug/:categorySlug/:slug" element={<ProductPage />} />
               <Route path="/product/id/:id" element={<ProductPage />} />
               <Route path="/product-v2/:slug" element={<ProductPageV2 />} />
               <Route path="/product-v2/id/:id" element={<ProductPageV2 />} />
               <Route path="/product-v2-copy/:slug" element={<ProductPageV2Copy />} />
               <Route path="/product-v2-copy/id/:id" element={<ProductPageV2Copy />} />
               <Route
-                path="/collection/all"
+                path="/catalog"
                 element={
                   <RequireAuth>
                     <NewcatalogCollectionAll />
                   </RequireAuth>
                 }
               />
+              <Route path="/apparel" element={<Navigate to="/catalog" replace />} />
               <Route
-                path="/catalog/all"
+                path="/collection/all"
+                element={
+                  <Navigate to="/catalog" replace />
+                }
+              />
+              <Route path="/catalog/all" element={<Navigate to="/catalog" replace />} />
+              <Route
+                path="/catalog/:slug"
                 element={
                   <RequireAuth>
-                    <NewcatalogCollectionAll />
+                    <NewcatalogCollectionCategory />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/:slug"
+                element={
+                  <RequireAuth>
+                    <NewcatalogCollectionCategory />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/:parentSlug/:slug"
+                element={
+                  <RequireAuth>
+                    <NewcatalogCollectionCategory />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/apparel/:slug"
+                element={
+                  <RequireAuth>
+                    <NewcatalogCollectionCategory />
                   </RequireAuth>
                 }
               />
@@ -109,15 +145,18 @@ const App = () => (
                   </RequireCorporate>
                 }
               >
-                <Route index element={<Navigate to="/brand/products" replace />} />
+                <Route index element={<Navigate to="/brand/catalog" replace />} />
                 <Route path="products" element={<BusinessProducts />} />
+                <Route path="products/new" element={<AdminProductEdit mode="create" />} />
                 <Route path="products/:id" element={<AdminProductEdit mode="edit" />} />
                 <Route path="catalog" element={<BusinessCatalog />} />
-                <Route path="catalogs" element={<BusinessCatalogs />} />
+                <Route path="profile" element={<BusinessCatalogs />} />
+                <Route path="quotes" element={<BusinessQuotes />} />
+                <Route path="catalogs" element={<Navigate to="/brand/profile" replace />} />
                 <Route path="catalogs/:id/products" element={<BusinessCatalogProducts />} />
-                <Route path="users" element={<BrandUsers />} />
+                <Route path="users" element={<Navigate to="/brand/catalog" replace />} />
               </Route>
-              <Route path="/business/*" element={<Navigate to="/brand/products" replace />} />
+              <Route path="/business/*" element={<Navigate to="/brand/catalog" replace />} />
 
               <Route
                 path="/admin"

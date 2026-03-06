@@ -50,10 +50,8 @@ export function NewcatalogTopNav() {
   const NAV: NavItem[] = [
     { label: t("nav.home"), to: "/" },
     { label: t("nav.about"), to: "/#aboutus" },
-    { label: t("nav.works"), to: "/#work" },
     { label: t("nav.pricing"), to: "/pricing" },
-    ...(user ? [{ label: t("nav.catalog"), to: "/catalog/all" }] : []),
-    { label: t("nav.brands"), to: "/brands" },
+    ...(user ? [{ label: t("nav.catalog"), to: "/catalog" }] : []),
     { label: t("nav.blog"), to: "/blog" },
   ];
 

@@ -35,6 +35,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { arrayMove, buildSortOrderUpdates } from "@/lib/sort-order";
+import { getProductPath } from "@/lib/productUrls";
+import { formatMoney, normalizeCurrency } from "@/lib/currency";
 import { GripVertical, Pencil, Trash2, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,10 +44,12 @@ type ProductRow = {
   id: string;
   name: string;
   slug: string | null;
+  product_code: string | null;
   cover_image_url: string | null;
   thumbnail_url: string | null;
   sort_order: number;
   price_from: number | null;
+  currency: string | null;
   is_active: boolean | null;
   created_at: string;
   categories?: { name: string } | null;
@@ -85,7 +89,7 @@ export default function BusinessProducts() {
       if (!userId) return [];
       const { data, error } = await supabase
         .from("products")
-        .select("id,name,slug,cover_image_url,thumbnail_url,sort_order,price_from,is_active,created_at,categories(name)")
+        .select("id,name,slug,cover_image_url,thumbnail_url,sort_order,price_from,currency,is_active,created_at,categories(name)")
         .eq("owner_user_id", userId)
         .order("sort_order", { ascending: true });
       if (!error) return (data ?? []) as ProductRow[];
@@ -153,7 +157,10 @@ export default function BusinessProducts() {
   }
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-4 pt-6 md:p-6 md:pt-8">
+      <div className="mb-4 flex items-center justify-end">
+        <Button onClick={() => navigate("/brand/products/new")}>Yeni Ürün</Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Ürünlerim</CardTitle>
@@ -214,9 +221,9 @@ export default function BusinessProducts() {
                             </div>
                           </TableCell>
                           <TableCell>{p.categories?.name ?? "—"}</TableCell>
-                          <TableCell>{p.price_from != null ? `$${p.price_from}` : "—"}</TableCell>
+                          <TableCell>{p.price_from != null ? formatMoney(Number(p.price_from), normalizeCurrency(p.currency)) : "—"}</TableCell>
                           <TableCell>
-                            <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? "Yayında" : "Taslak"}</Badge>
+                            <Badge variant={p.is_active ? "success" : "secondary"}>{p.is_active ? "Yayında" : "Taslak"}</Badge>
                             <Switch
                               checked={Boolean(p.is_active)}
                               onCheckedChange={(checked) => toggleStatusMutation.mutate({ id: p.id, is_active: checked })}
@@ -228,7 +235,11 @@ export default function BusinessProducts() {
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               <Button variant="outline" size="icon" asChild title="Mağazada aç">
-                                <a href={p.slug ? `/product/${p.slug}` : `/product/id/${p.id}`} target="_blank" rel="noopener noreferrer">
+                                <a
+                                  href={getProductPath({ slug: p.slug, productCode: p.product_code, id: p.id })}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
                                   <ExternalLink className="h-4 w-4" />
                                 </a>
                               </Button>

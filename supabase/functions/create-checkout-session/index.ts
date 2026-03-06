@@ -19,9 +19,48 @@ type Body = {
   interval?: string;
 };
 
+async function getOrCreateStripeCustomerId(
+  stripe: Stripe,
+  user: { id: string; email?: string | null },
+): Promise<string | null> {
+  const email = user.email?.trim();
+  if (!email) return null;
+
+  const existing = await stripe.customers.list({
+    email,
+    limit: 1,
+  });
+  if (existing.data.length > 0) return existing.data[0].id;
+
+  const created = await stripe.customers.create({
+    email,
+    metadata: { user_id: user.id },
+  });
+  return created.id;
+}
+
 function getPriceId(plan: string, interval: string): string | null {
   const key = `STRIPE_PRICE_${plan.toUpperCase()}_${interval.toUpperCase()}`;
   return Deno.env.get(key)?.trim() || null;
+}
+
+function getSiteUrl(req: Request): string {
+  const origin = req.headers.get("Origin")?.trim();
+  if (origin) return origin.replace(/\/$/, "");
+
+  const referer = req.headers.get("Referer")?.trim();
+  if (referer) {
+    try {
+      return new URL(referer).origin;
+    } catch {
+      // ignore invalid referer
+    }
+  }
+
+  const configured = Deno.env.get("SITE_URL")?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+
+  return "http://localhost:5173";
 }
 
 Deno.serve(async (req) => {
@@ -76,7 +115,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const siteUrl = Deno.env.get("SITE_URL")?.trim() || req.headers.get("Referer")?.replace(/\/$/, "") || "http://localhost:5173";
+    const siteUrl = getSiteUrl(req);
     const successUrl = `${siteUrl}/pricing?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${siteUrl}/pricing?canceled=true`;
 
@@ -96,12 +135,17 @@ Deno.serve(async (req) => {
     }
 
     const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" });
+    const customerId = await getOrCreateStripeCustomerId(stripe, { id: user.id, email: user.email });
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
+      allow_promotion_codes: true,
+      payment_method_collection: "if_required",
       success_url: successUrl,
       cancel_url: cancelUrl,
       client_reference_id: user.id,
+      customer: customerId ?? undefined,
+      customer_email: customerId ? undefined : (user.email ?? undefined),
       metadata: { user_id: user.id, plan },
       subscription_data: { metadata: { user_id: user.id, plan } },
     });

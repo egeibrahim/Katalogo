@@ -7,6 +7,8 @@ import { CollectionFilters } from "@/components/newcatalog/collection/Collection
 import { SignedImage } from "@/components/ui/signed-image";
 import { supabase } from "@/integrations/supabase/client";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { fromPublicCategorySlug, toPublicCategorySlug } from "@/lib/productUrls";
 
 type DbCategory = {
   id: string;
@@ -18,8 +20,14 @@ type DbCategory = {
 };
 
 export default function NewcatalogCollectionCategory() {
-  const { slug } = useParams();
-  const categorySlug = (slug ?? "").trim();
+  const { t } = useI18n();
+  const { parentSlug, slug } = useParams();
+  const categorySlug = fromPublicCategorySlug((slug ?? parentSlug) ?? "");
+  const categoryLabelBySlug = (slugValue: string, fallbackName: string) => {
+    const key = `catalog.category.${slugValue.toLowerCase()}`;
+    const translated = t(key);
+    return translated === key ? fallbackName : translated;
+  };
 
   const { data: category, isLoading: categoryLoading } = useQuery({
     queryKey: ["public", "categories", "by-slug", categorySlug],
@@ -96,7 +104,7 @@ export default function NewcatalogCollectionCategory() {
       const { data, error } = await supabase
         .from("products")
         .select(
-          `id,name,slug,cover_image_url,thumbnail_url,price_from,badge,product_code,sort_order,
+          `id,name,slug,cover_image_url,thumbnail_url,price_from,currency,badge,product_code,sort_order,
           product_color_variants ( product_colors ( id, name, hex_code, sort_order ) ),
           product_size_variants ( product_sizes ( id, name, sort_order ) ),
           product_attributes ( data ),
@@ -113,7 +121,10 @@ export default function NewcatalogCollectionCategory() {
     staleTime: 1000 * 60 * 2,
   });
 
-  const title = useMemo(() => category?.name ?? "Collection", [category?.name]);
+  const title = useMemo(() => {
+    if (!category) return t("catalog.collection");
+    return categoryLabelBySlug(category.slug, category.name);
+  }, [category, t]);
 
   usePageMeta({ title });
 
@@ -132,20 +143,22 @@ export default function NewcatalogCollectionCategory() {
   return (
     <NewcatalogChrome activeCategory={activeTopCategory}>
       <div className="ru-max">
-        <section className="ts-collection-hero" aria-label="Collection header">
-          <nav className="ru-breadcrumb" aria-label="Breadcrumb">
-            <Link to="/collection/all" className="ru-breadcrumb-link">
-              All Products
+        <section className="ts-collection-hero" aria-label={t("catalog.collectionHeader")}>
+          <nav className="ru-breadcrumb" aria-label={t("catalog.breadcrumb")}>
+            <Link to="/catalog" className="ru-breadcrumb-link">
+              {t("catalog.allProducts")}
             </Link>
             {parentCategory ? (
               <>
                 <span className="ru-breadcrumb-sep">/</span>
                 <Link
-                  to={`/collection/${parentCategory.slug}`}
+                  to={`/${toPublicCategorySlug(parentCategory.slug)}`}
                   className="ru-breadcrumb-link"
-                  aria-label={`Open ${parentCategory.name}`}
+                  aria-label={t("catalog.openCategory", {
+                    name: categoryLabelBySlug(parentCategory.slug, parentCategory.name),
+                  })}
                 >
-                  {parentCategory.name}
+                  {categoryLabelBySlug(parentCategory.slug, parentCategory.name)}
                 </Link>
               </>
             ) : null}
@@ -156,18 +169,24 @@ export default function NewcatalogCollectionCategory() {
           </nav>
           <h1 className="ts-collection-title">{title}</h1>
           <p className="ts-collection-subtitle">
-            Customize high-quality garments and have your creations shipped directly to you or your customers.
+            {t("catalog.allProductsSubtitle")}
           </p>
 
           {visualMenuCategories.length > 0 ? (
-            <div className="ts-collection-grid" role="list" aria-label="Subcategories">
+            <div className="ts-collection-grid" role="list" aria-label={t("catalog.subcategories")}>
               {visualMenuCategories.map((c) => (
                 <Link
                   key={c.id}
-                  to={`/collection/${c.slug}`}
+                  to={
+                    parentCategory?.slug
+                      ? `/${toPublicCategorySlug(parentCategory.slug)}/${toPublicCategorySlug(c.slug)}`
+                      : childCategories.length > 0
+                        ? `/${toPublicCategorySlug(category?.slug)}/${toPublicCategorySlug(c.slug)}`
+                        : `/${toPublicCategorySlug(c.slug)}`
+                  }
                   className="ts-collection-card"
                   role="listitem"
-                  aria-label={`Open ${c.name}`}
+                  aria-label={t("catalog.openCategory", { name: categoryLabelBySlug(c.slug, c.name) })}
                 >
                   <div className="ts-collection-card-inner" aria-hidden>
                     {c.cover_image_url ? (
@@ -176,7 +195,7 @@ export default function NewcatalogCollectionCategory() {
                       <div className="ts-cat-icon" aria-hidden />
                     )}
                   </div>
-                  <div className="ts-collection-card-label">{c.name}</div>
+                  <div className="ts-collection-card-label">{categoryLabelBySlug(c.slug, c.name)}</div>
                 </Link>
               ))}
             </div>
@@ -185,22 +204,29 @@ export default function NewcatalogCollectionCategory() {
           <CollectionFilters />
         </section>
 
-        <section className="ru-max" aria-label="Collection products">
+        <section className="ru-max" aria-label={t("catalog.collectionProducts")}>
           <div className="mt-4">
             {categoryLoading || productsLoading ? (
               <div className="ts-container">
-                <p className="text-muted-foreground">Loading…</p>
+                <p className="text-muted-foreground">{t("common.loading")}</p>
               </div>
             ) : !category ? (
               <div className="ts-container">
-                <p className="text-muted-foreground">Category not found.</p>
+                <p className="text-muted-foreground">{t("catalog.categoryNotFound")}</p>
               </div>
             ) : products.length === 0 ? (
               <div className="ts-container">
-                <p className="text-muted-foreground">No active products yet.</p>
+                <p className="text-muted-foreground">{t("catalog.noActiveProducts")}</p>
               </div>
             ) : (
-              <CatalogProductGrid products={products as any} />
+              <CatalogProductGrid
+                products={products as any}
+                categoryPathContext={
+                  parentCategory?.slug && category?.slug
+                    ? { parentCategorySlug: parentCategory.slug, categorySlug: category.slug }
+                    : null
+                }
+              />
             )}
           </div>
         </section>

@@ -180,7 +180,7 @@ export function useAuth() {
   };
 
   const signInWithGoogle = async () => {
-    const redirectTo = `${window.location.origin}/catalog/all`;
+    const redirectTo = `${window.location.origin}/catalog`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

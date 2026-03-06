@@ -34,7 +34,7 @@ export function CatalogBar({
   }, [cartItems, currentProductId, currentProductName]);
 
   return (
-    <div className="w-full bg-background">
+    <div className="w-full bg-white">
       <div className="flex items-center gap-3 px-3 py-2">
         <Select value={currentProductId || "__none__"} onValueChange={(v) => v !== "__none__" && onProductSelect(v)}>
           <SelectTrigger className="w-[200px] h-9 shrink-0">

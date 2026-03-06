@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+import { FULFILLMENT_COUNTRIES } from "@/lib/fulfillmentLocations";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FilterMultiSelectDropdown, type FilterKey } from "@/components/newcatalog/collection/FilterMultiSelectDropdown";
 
@@ -42,6 +43,48 @@ export function CollectionFilters() {
         const arr = (vals ?? []).map((v: any) => String(v.value ?? "").trim()).filter(Boolean);
         if ((attr.key ?? "").toLowerCase() === "elements") out.elements = arr;
         if ((attr.key ?? "").toLowerCase() === "style") out.style = arr;
+      }
+      return out;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Size options in Filters should match the canonical size list defined under /admin/filters (attributes + attribute_values).
+  const { data: filterSizeOptions } = useQuery({
+    queryKey: ["public", "filter_attributes", "size"],
+    queryFn: async () => {
+      const { data: sizeAttrs, error: attrsErr } = await supabase
+        .from("attributes")
+        .select("id,key,name")
+        // Support different conventions: key/name contains size or legacy EU key.
+        .or("key.ilike.%size%,name.ilike.%size%,key.ilike.eu")
+        .eq("is_active", true);
+      if (attrsErr || !sizeAttrs?.length) return [] as string[];
+
+      const attrIds = sizeAttrs.map((a: any) => a.id).filter(Boolean);
+      if (!attrIds.length) return [] as string[];
+
+      const { data: sizeValues, error: valuesErr } = await supabase
+        .from("attribute_values")
+        .select("value,sort_order,created_at,is_active")
+        .in("attribute_id", attrIds)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (valuesErr || !sizeValues) return [] as string[];
+
+      const names = (sizeValues ?? [])
+        .map((r: any) => String(r.value ?? "").trim())
+        .filter(Boolean);
+
+      // Deduplicate while preserving configured order.
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const n of names) {
+        const key = n.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(n);
       }
       return out;
     },
@@ -155,22 +198,23 @@ export function CollectionFilters() {
   }, [attributeOptions?.color]);
 
   const deliverToOptions = useMemo(
-    () =>
-      attributeOptions?.region?.length
-        ? attributeOptions.region
-        : ["United States", "United Kingdom", "Canada", "Australia", "Germany"],
-    [attributeOptions?.region]
+    () => (FULFILLMENT_COUNTRIES as readonly string[]).filter((c) => c !== "Other"),
+    []
   );
 
   const fulfillmentOptions = useMemo(
-    () =>
-      attributeOptions?.fulfillment_from?.length ? attributeOptions.fulfillment_from : ["On demand", "In stock"],
-    [attributeOptions?.fulfillment_from]
+    () => (FULFILLMENT_COUNTRIES as readonly string[]).filter((c) => c !== "Other"),
+    []
   );
 
   const sizeOptions = useMemo(
-    () => (attributeOptions?.size?.length ? attributeOptions.size : ["XS", "S", "M", "L", "XL", "2XL", "3XL"]),
-    [attributeOptions?.size]
+    () =>
+      filterSizeOptions?.length
+        ? filterSizeOptions
+        : attributeOptions?.size?.length
+          ? attributeOptions.size
+          : ["XS", "S", "M", "L", "XL", "2XL", "3XL"],
+    [filterSizeOptions, attributeOptions?.size]
   );
 
   const fitOptions = useMemo(

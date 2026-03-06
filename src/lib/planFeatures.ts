@@ -27,7 +27,7 @@ export function getExportDailyLimit(plan: MembershipPlan | null | undefined): nu
 /** Sepete ekle / sepet sayfası: sadece brand ve corporate/custom_request. */
 export function canUseCart(plan: MembershipPlan | null | undefined): boolean {
   if (!plan) return false;
-  return plan === "brand" || plan === "corporate" || plan === "custom_request";
+  return plan === "individual" || plan === "brand" || plan === "corporate" || plan === "custom_request";
 }
 
 /** Teklif talebi gönderme: brand ve corporate/custom_request. */

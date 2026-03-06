@@ -22,25 +22,29 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 18% 12%;
 
-    /* Accent = warm ink-red; Primary used for actions */
-    --primary: 12 72% 50%;
+    /* Primary = lacivert/navy; butonlar ve aksiyonlar */
+    --primary: 224 44% 28%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 18% 94%;
-    --secondary-foreground: 222 18% 12%;
+    /* Buton içi: outline/secondary dolgu – lacivertle uyumlu açık mavi-gri */
+    --button-muted: 220 18% 97%;
+    --button-muted-foreground: 224 44% 28%;
 
-    --muted: 40 18% 94%;
+    --secondary: 220 18% 95%;
+    --secondary-foreground: 224 44% 28%;
+
+    --muted: 220 14% 96%;
     --muted-foreground: 222 10% 44%;
 
-    --accent: 12 72% 50%;
+    --accent: 224 44% 28%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 35 16% 88%;
-    --input: 35 16% 88%;
-    --ring: 12 72% 50%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 224 44% 28%;
 
     --radius: 0.75rem;
 
@@ -70,8 +74,11 @@
     --popover: 222 18% 12%;
     --popover-foreground: 35 22% 92%;
 
-    --primary: 12 72% 55%;
+    --primary: 224 44% 45%;
     --primary-foreground: 0 0% 100%;
+
+    --button-muted: 222 14% 18%;
+    --button-muted-foreground: 35 22% 92%;
 
     --secondary: 222 14% 18%;
     --secondary-foreground: 35 22% 92%;
@@ -79,7 +86,7 @@
     --muted: 222 14% 18%;
     --muted-foreground: 35 10% 70%;
 
-    --accent: 12 72% 55%;
+    --accent: 224 44% 45%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 60% 34%;
@@ -87,7 +94,7 @@
 
     --border: 222 14% 22%;
     --input: 222 14% 22%;
-    --ring: 12 72% 55%;
+    --ring: 224 44% 45%;
   }
 }
 
@@ -563,6 +570,32 @@
   .admin-with-site-nav .sidebar-fixed-layer {
     top: var(--admin-topnav-h, 88px);
     height: calc(100vh - var(--admin-topnav-h, 88px));
+  }
+
+  /* Brand layout: site top nav altında sidebar/topbar hizası */
+  .business-with-site-nav .group.peer[data-side="left"] > div:first-child {
+    height: calc(100vh - var(--site-topnav-h, 88px));
+  }
+  .business-with-site-nav .sidebar-fixed-layer {
+    top: var(--site-topnav-h, 88px);
+    height: calc(100vh - var(--site-topnav-h, 88px));
+    z-index: 50;
+  }
+  .business-with-site-nav .business-topbar {
+    top: 0;
+  }
+  .business-with-site-nav .business-layout-shell {
+    min-height: 0 !important;
+    flex: 1 1 auto;
+    width: 100% !important;
+  }
+  .business-with-site-nav main {
+    min-height: 0 !important;
+    width: 100% !important;
+  }
+  .business-with-site-nav .business-content-scroll {
+    min-height: 0 !important;
+    overflow: auto;
   }
 
   /* Admin alanı: sidebar wrapper ve main yüksekliği viewport’u aşmasın, scroll düzgün çalışsın */

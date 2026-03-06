@@ -15,6 +15,7 @@ import { ChevronLeft, GripVertical, Plus, Trash2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getProductPath } from "@/lib/productUrls";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { toast } from "@/hooks/use-toast";
 import { arrayMove } from "@/lib/sort-order";
@@ -34,6 +35,7 @@ type ProductRow = {
   id: string;
   name: string;
   slug: string | null;
+  product_code?: string | null;
   cover_image_url: string | null;
   thumbnail_url: string | null;
 };
@@ -92,7 +94,9 @@ function SortableCatalogProductRow({ item, onRemove }: { item: CatalogProductIte
 
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium text-foreground">{p?.name ?? item.product_id}</div>
-        <div className="truncate text-sm text-muted-foreground">{p?.slug ? `/product/${p.slug}` : `id: ${item.product_id}`}</div>
+        <div className="truncate text-sm text-muted-foreground">
+          {p ? getProductPath({ slug: p.slug, productCode: p.product_code, id: p.id }) : `id: ${item.product_id}`}
+        </div>
       </div>
 
       <Button type="button" variant="outline" size="sm" className="gap-2" onClick={onRemove}>
@@ -138,7 +142,7 @@ export default function BusinessCatalogProducts() {
     queryFn: async (): Promise<ProductRow[]> => {
       const { data, error } = await supabase
         .from("products")
-        .select("id,name,slug,cover_image_url,thumbnail_url")
+        .select("id,name,slug,product_code,cover_image_url,thumbnail_url")
         .order("name", { ascending: true })
         .limit(500);
       if (error) throw error;

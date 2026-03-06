@@ -47,6 +47,7 @@ verify_jwt = false
 
 - Kullanıcı Fiyat sayfasında Kişisel veya Marka’ya tıklar → giriş yoksa `/auth`’a gider.
 - Giriş varsa `create-checkout-session` Edge Function çağrılır → Stripe Checkout sayfasına yönlendirilir.
+- Checkout sayfasında promo/indirim kodu alanı görünür (`allow_promotion_codes: true`).
 - Ödeme tamamlanınca Stripe `checkout.session.completed` ile webhook’u tetikler → `stripe-webhook` function `user_memberships` tablosunu günceller (plan: individual veya brand).
 - Abonelik iptal/bitişte `customer.subscription.deleted` ile plan tekrar `free` yapılabilir.
 

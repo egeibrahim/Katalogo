@@ -2,6 +2,7 @@
 // Pricing sayfası ?canceled=true veya ?success=true ile yüklendiğinde bu fonksiyon çağrılır.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Stripe from "https://esm.sh/stripe@14?target=denonext";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = (await req.json().catch(() => ({}))) as { session_id?: string };
+    const sessionId = String(body.session_id ?? "").trim();
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -28,20 +32,74 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: userError } = await authedClient.auth.getUser();
-    if (userError || !user) {
-      // Oturum yoksa temizlenecek bir şey de yok – 200 dön (frontend hata görmesin)
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+    const { data: { user } } = await authedClient.auth.getUser();
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    await adminClient
-      .from("user_memberships")
-      .update({ pending_plan: null, pending_interval: null })
-      .eq("user_id", user.id);
+
+    // Success dönüşünde session_id varsa Stripe üzerinden doğrulayıp üyeliği netleştir.
+    let syncedUserIdFromStripe: string | null = null;
+    if (sessionId) {
+      const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY")?.trim();
+      if (stripeSecret) {
+        const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" });
+        try {
+          const checkout = await stripe.checkout.sessions.retrieve(sessionId, {
+            expand: ["subscription"],
+          });
+
+          const checkoutUserId = checkout.client_reference_id || checkout.metadata?.user_id || null;
+          const checkoutPlan = checkout.metadata?.plan?.toLowerCase();
+          const allowedPlan = checkoutPlan === "brand" || checkoutPlan === "individual" ? checkoutPlan : null;
+          const isSuccess =
+            checkout.payment_status === "paid" ||
+            checkout.status === "complete" ||
+            checkout.amount_total === 0;
+
+          if (checkoutUserId && allowedPlan && isSuccess) {
+            syncedUserIdFromStripe = checkoutUserId;
+            const { error: syncErr } = await adminClient
+              .from("user_memberships")
+              .upsert(
+                {
+                  user_id: checkoutUserId,
+                  plan: allowedPlan,
+                  status: "active",
+                  pending_plan: null,
+                  pending_interval: null,
+                },
+                { onConflict: "user_id" },
+              );
+            if (syncErr) {
+              console.error("clear-pending-plan membership sync upsert failed:", syncErr.message);
+            }
+          }
+        } catch (stripeErr) {
+          console.error("clear-pending-plan stripe sync failed:", stripeErr);
+        }
+      }
+    }
+
+    // Oturum açıksa kendi kullanıcısının pending alanlarını temizle.
+    if (user?.id) {
+      const { error: clearOwnErr } = await adminClient
+        .from("user_memberships")
+        .update({ pending_plan: null, pending_interval: null })
+        .eq("user_id", user.id);
+      if (clearOwnErr) {
+        console.error("clear-pending-plan clear own pending failed:", clearOwnErr.message);
+      }
+    }
+
+    // session_id ile sync olduysa onun da pending alanlarını temizle.
+    if (syncedUserIdFromStripe) {
+      const { error: clearSyncedErr } = await adminClient
+        .from("user_memberships")
+        .update({ pending_plan: null, pending_interval: null })
+        .eq("user_id", syncedUserIdFromStripe);
+      if (clearSyncedErr) {
+        console.error("clear-pending-plan clear synced pending failed:", clearSyncedErr.message);
+      }
+    }
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

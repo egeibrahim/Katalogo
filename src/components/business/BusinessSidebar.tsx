@@ -1,5 +1,5 @@
 import { useLocation } from "react-router-dom";
-import { BookOpen, Package, Library, Users } from "lucide-react";
+import { Library, Package, UserCog, FileText } from "lucide-react";
 
 import { NavLink } from "@/components/NavLink";
 import {
@@ -16,10 +16,10 @@ import {
 import { useI18n } from "@/lib/i18n/LocaleProvider";
 
 const ITEMS = [
-  { title: "brand.sidebarProducts", url: "/brand/products", icon: Package },
   { title: "brand.sidebarCatalog", url: "/brand/catalog", icon: Library },
-  { title: "brand.sidebarCatalogs", url: "/brand/catalogs", icon: BookOpen },
-  { title: "brand.sidebarUsers", url: "/brand/users", icon: Users },
+  { title: "brand.sidebarProducts", url: "/brand/products", icon: Package },
+  { title: "brand.sidebarQuotes", url: "/brand/quotes", icon: FileText },
+  { title: "brand.sidebarProfile", url: "/brand/profile", icon: UserCog },
 ] as const;
 
 export function BusinessSidebar() {
@@ -27,7 +27,12 @@ export function BusinessSidebar() {
   const { collapsed } = useSidebar() as unknown as { collapsed?: boolean };
   const location = useLocation();
   const currentPath = location.pathname;
-  const isActive = (path: string) => currentPath === path;
+  const isActive = (path: string) => {
+    if (path === "/brand/catalog") {
+      return currentPath === "/brand/catalog" || currentPath.startsWith("/brand/catalogs/");
+    }
+    return currentPath === path || currentPath.startsWith(`${path}/`);
+  };
 
   return (
     <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">

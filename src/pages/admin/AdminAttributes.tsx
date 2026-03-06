@@ -643,13 +643,16 @@ export default function AdminAttributes() {
   const deleteAttributeMutation = useMutation({
     mutationFn: async ({ attrId, attributeKey, attributeName }: { attrId: string; attributeKey: string; attributeName: string }) => {
       await ensureSessionOrRedirect();
-      // Guard: prevent deleting attributes that are already used by products.
+      // region/fulfillment_from: options now from FULFILLMENT_COUNTRIES; allow delete.
+      const skipUsedCheck = attributeKey === "region" || attributeKey === "fulfillment_from";
+      if (!skipUsedCheck) {
       const { data: isUsed, error: usedError } = await supabase.rpc("is_attribute_used", {
         _attribute_key: attributeKey,
       });
       if (usedError) throw usedError;
       if (isUsed) {
         throw new Error(`“${attributeName}” (key: ${attributeKey}) is used by products; cannot delete.`);
+      }
       }
 
       // Ensure options are removed before deleting the attribute (avoids FK issues).

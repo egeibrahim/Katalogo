@@ -6,7 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CatalogProductGrid } from "@/components/newcatalog/collection/CatalogProductGrid";
+import { LandingFooter } from "@/components/navigation/LandingFooter";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { getProductPath } from "@/lib/productUrls";
 
 type Catalog = {
   id: string;
@@ -18,6 +20,12 @@ type Catalog = {
   cover_image_url: string | null;
 };
 
+type Category = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
 type CatalogProduct = {
   id: string;
   name: string;
@@ -25,13 +33,16 @@ type CatalogProduct = {
   cover_image_url: string | null;
   thumbnail_url: string | null;
   price_from: number | null;
+  currency: string | null;
   badge: string | null;
   product_code: string | null;
+  category_id: string | null;
 };
 
 type PublicCatalogData = {
   catalog: Catalog;
   products: CatalogProduct[];
+  categories: Category[];
 };
 
 export default function PublicCatalog() {
@@ -62,27 +73,43 @@ export default function PublicCatalog() {
 
       const productIds = (links ?? []).map((l) => l.product_id).filter(Boolean) as string[];
       if (productIds.length === 0) {
-        return { catalog: catalog as Catalog, products: [] };
+        return { catalog: catalog as Catalog, products: [], categories: [] };
       }
 
       const { data: products, error: productsError } = await supabase
         .from("products")
-        .select("id,name,slug,cover_image_url,thumbnail_url,price_from,badge,product_code")
+        .select("id,name,slug,cover_image_url,thumbnail_url,price_from,currency,badge,product_code,category_id")
         .in("id", productIds);
       if (productsError) throw productsError;
 
       const byId = new Map((products ?? []).map((p) => [p.id, p as unknown as CatalogProduct]));
       const orderedProducts = productIds.map((id) => byId.get(id)).filter(Boolean) as CatalogProduct[];
 
+      const categoryIds = Array.from(
+        new Set((orderedProducts ?? []).map((p) => p.category_id).filter(Boolean) as string[]),
+      );
+
+      let categories: Category[] = [];
+      if (categoryIds.length > 0) {
+        const { data: categoryRows, error: categoryError } = await supabase
+          .from("categories")
+          .select("id,name,slug")
+          .in("id", categoryIds);
+        if (categoryError) throw categoryError;
+        categories = (categoryRows ?? []) as Category[];
+      }
+
       return {
         catalog: catalog as Catalog,
         products: orderedProducts,
+        categories,
       };
     },
   });
 
   const catalog = data?.catalog ?? null;
   const products = data?.products ?? [];
+  const categories = data?.categories ?? [];
 
   const productCount = products.length;
   const description =
@@ -106,7 +133,11 @@ export default function PublicCatalog() {
     const itemListElement = products.slice(0, 20).map((p, i) => ({
       "@type": "ListItem",
       position: i + 1,
-      url: p.slug ? `${baseUrl}/product/${p.slug}` : undefined,
+      url: `${baseUrl}${getProductPath({
+        slug: p.slug,
+        productCode: p.product_code,
+        id: p.id,
+      })}`,
       name: p.name,
     }));
     const jsonLd = {
@@ -132,40 +163,42 @@ export default function PublicCatalog() {
     };
   }, [catalog, products, description]);
 
-  if (isLoading) {
-    return (
-      <div className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("common.loading")}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="p-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("common.loading")}</CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+      );
+    }
 
-  if (!catalog) {
-    return (
-      <div className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("publicCatalog.notPublished")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{t("publicCatalog.notPublishedDesc")}</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+    if (!catalog) {
+      return (
+        <div className="p-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("publicCatalog.notPublished")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{t("publicCatalog.notPublishedDesc")}</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
 
-  return (
-    <div className="p-4 md:p-8">
-      <header className="overflow-hidden rounded-xl border border-border">
+    return (
+      <>
+      <div className="p-4 md:p-8">
+        <header className="overflow-hidden rounded-xl border border-border">
         <div className="relative h-48 md:h-72">
           <img
             src={catalog.cover_image_url || "/placeholder.svg"}
-            alt={`${catalog.name} cover image`}
+            alt={t("publicCatalog.coverImageAlt", { name: catalog.name })}
             className="h-full w-full object-cover"
             loading="lazy"
             onError={(e) => {
@@ -176,7 +209,7 @@ export default function PublicCatalog() {
           <div className="absolute bottom-4 left-4 right-4 flex items-end gap-4">
             <img
               src={catalog.logo_url || "/placeholder.svg"}
-              alt={`${catalog.name} logo`}
+              alt={t("publicCatalog.logoAlt", { name: catalog.name })}
               className="h-16 w-16 rounded-lg border border-border bg-background object-contain"
               loading="lazy"
               onError={(e) => {
@@ -191,7 +224,7 @@ export default function PublicCatalog() {
         </div>
       </header>
 
-      <main className="mt-6">
+        <main className="mt-6">
         {products.length === 0 ? (
           <Card>
             <CardHeader>
@@ -207,10 +240,33 @@ export default function PublicCatalog() {
               <h2 className="text-lg font-semibold">{t("common.products")}</h2>
               <p className="text-sm text-muted-foreground">{t("publicCatalog.productsInCatalog")}</p>
             </div>
-            <CatalogProductGrid products={products} designerBrandSlug={catalog.slug} />
+            {categories.length > 0 ? (
+              <div className="ru-catalog-catbar mb-6 overflow-x-auto">
+                <div className="flex flex-nowrap gap-3">
+                  {categories.map((category) => (
+                    <div
+                      key={category.id}
+                      className="rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground whitespace-nowrap"
+                    >
+                      {category.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <CatalogProductGrid
+              products={products}
+              designerBrandSlug={catalog.slug}
+              categoryPathContext={null}
+            />
           </>
         )}
-      </main>
-    </div>
-  );
+        </main>
+      </div>
+      <LandingFooter />
+      </>
+    );
+  };
+
+  return renderContent();
 }

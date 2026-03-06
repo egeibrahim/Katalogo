@@ -1,15 +1,43 @@
 import "./landing.css";
 import "./landing-awake.css";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { ArrowRight, Sparkles, Palette, LayoutGrid, FileText, BarChart3 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { Logo } from "@/components/Logo";
 
 const AWAKE_BASE = "/awake";
 
 export default function Landing() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   usePageMeta({ title: t("landing.metaTitle") });
+
+  useEffect(() => {
+    const previous = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = "smooth";
+
+    const targets = Array.from(document.querySelectorAll<HTMLElement>(".landing-reveal"));
+    if (targets.length === 0) return () => { document.documentElement.style.scrollBehavior = previous; };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.16, rootMargin: "0px 0px -8% 0px" },
+    );
+
+    targets.forEach((el) => observer.observe(el));
+
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.scrollBehavior = previous;
+    };
+  }, []);
 
   const FAQ_ITEMS = [
     { q: t("landing.faqQ1"), a: t("landing.faqA1") },
@@ -32,28 +60,59 @@ export default function Landing() {
     { img: `${AWAKE_BASE}/work/work-img-4.jpg`, title: "Görsel dil", tags: ["Görsel", "Mobil"] },
   ];
 
-  const team = [
-    { img: `${AWAKE_BASE}/team/team-img-1.png`, name: "Logan Dang", role: "Geliştirici" },
-    { img: `${AWAKE_BASE}/team/team-img-2.png`, name: "Ana Belić", role: "Pazarlama" },
-    { img: `${AWAKE_BASE}/team/team-img-3.png`, name: "Brian Hanley", role: "Ürün Tasarımcı" },
-    { img: `${AWAKE_BASE}/team/team-img-4.png`, name: "Darko Stanković", role: "UI Tasarımcı" },
-  ];
-
   const brandLogos = [
-    `${AWAKE_BASE}/brands/logo-ipsum-1.svg`,
-    `${AWAKE_BASE}/brands/logo-ipsum-2.svg`,
-    `${AWAKE_BASE}/brands/logo-ipsum-3.svg`,
-    `${AWAKE_BASE}/brands/logo-ipsum-4.svg`,
-    `${AWAKE_BASE}/brands/logo-ipsum-5.svg`,
+    `${AWAKE_BASE}/brands/mark-1.svg`,
+    `${AWAKE_BASE}/brands/mark-2.svg`,
+    `${AWAKE_BASE}/brands/mark-3.svg`,
+    `${AWAKE_BASE}/brands/mark-4.svg`,
+    `${AWAKE_BASE}/brands/mark-5.svg`,
+    `${AWAKE_BASE}/brands/mark-6.svg`,
+    `${AWAKE_BASE}/brands/mark-7.svg`,
+    `${AWAKE_BASE}/brands/mark-8.svg`,
+    `${AWAKE_BASE}/brands/mark-9.svg`,
+    `${AWAKE_BASE}/brands/mark-10.svg`,
   ];
+  const brandNames = [
+    t("landing.brand1"),
+    t("landing.brand2"),
+    t("landing.brand3"),
+    t("landing.brand4"),
+    t("landing.brand5"),
+    t("landing.brand6"),
+    t("landing.brand7"),
+    t("landing.brand8"),
+    t("landing.brand9"),
+    t("landing.brand10"),
+  ];
+  const brands = brandNames.map((name, i) => ({ name, logo: brandLogos[i] }));
+
+  const heroTitle =
+    locale === "tr"
+      ? { pre: "Cesur markaların", em: "katalog ve mockup", post: "merkezi" }
+      : { pre: "The", em: "catalog and mockup hub", post: "for bold brands" };
+
+  const commsTitle =
+    locale === "tr"
+      ? { pre: "Müşteri iletişiminde", em: "harcanan zamanı", post: "geri kazanın" }
+      : { pre: "Win back", em: "time spent", post: "in customer communication" };
+
+  const servicesTitle =
+    locale === "tr"
+      ? { pre: "Üründen satışa", em: "yeni yol haritası", post: "" }
+      : { pre: "A new roadmap", em: "from product to sale", post: "" };
+
+  const workTitle =
+    locale === "tr"
+      ? { pre: "Markaların", em: "çevrimiçi varlığını", post: "nasıl dönüştürdük" }
+      : { pre: "How we transformed small businesses'", em: "online presence", post: "" };
 
   return (
     <div className="landing-page" data-landing>
       {/* Üst menü AppLayout içinde NewcatalogTopNav ile tek menü */}
-      <section className="landing-hero">
+      <section className="landing-hero landing-reveal">
         <div className="landing-hero-inner landing-section-inner">
           <h1>
-            {t("landing.heroTitle")}
+            {heroTitle.pre} <em className="font-instrument">{heroTitle.em}</em> {heroTitle.post}
           </h1>
           <p className="landing-hero-p">
             {t("landing.heroSubtitle")}
@@ -75,54 +134,99 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Logo marquee */}
-      <section className="landing-marquee">
+      {/* Logo marquee — niş yabancı markalar + minimal logolar */}
+      <section className="landing-marquee landing-reveal">
         <div className="landing-section-inner">
           <div className="landing-marquee-inner">
-            {[...brandLogos, ...brandLogos].map((src, i) => (
-              <img key={i} src={src} alt="" />
+            {[...brands, ...brands].map((brand, i) => (
+              <div key={i} className="landing-marquee-item">
+                <img src={brand.logo} alt={brand.name} className="landing-marquee-logo" />
+                <span className="landing-marquee-brand">{brand.name}</span>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Count – pills + stats */}
-      <section className="landing-section" id="aboutus">
+      {/* Communication pain + video snippets */}
+      <section className="landing-section landing-reveal" id="aboutus">
         <div className="landing-section-inner">
           <h2 className="landing-title-center">
-            {t("landing.resultsTitle")}
+            {commsTitle.pre} <em className="font-instrument">{commsTitle.em}</em> {commsTitle.post}
           </h2>
-          <div className="landing-pills">
-            <span className="landing-pill landing-pill--secondary">{t("landing.pillCreativity")}</span>
-            <span className="landing-pill landing-pill--info">{t("landing.pillInnovation")}</span>
-            <span className="landing-pill landing-pill--orange">{t("landing.pillStrategy")}</span>
-          </div>
-          <div className="landing-stats">
-            <div>
-              <div className="landing-stat-num">+40</div>
-              <div className="landing-stat-label">{t("landing.statProjects")}</div>
-            </div>
-            <div>
-              <div className="landing-stat-num">+15</div>
-              <div className="landing-stat-label">{t("landing.statYears")}</div>
-            </div>
-            <div>
-              <div className="landing-stat-num">+12</div>
-              <div className="landing-stat-label">{t("landing.statAwards")}</div>
-            </div>
+          <div className="landing-video-grid">
+            <article className="landing-video-card">
+              <video
+                className="landing-video-el"
+                controls
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster={`${AWAKE_BASE}/work/work-img-1.jpg`}
+              >
+                <source src={`${AWAKE_BASE}/videos/snippet-1.mp4`} type="video/mp4" />
+              </video>
+              <p>{t("landing.videoSnippet1")}</p>
+            </article>
+            <article className="landing-video-card">
+              <video
+                className="landing-video-el"
+                controls
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster={`${AWAKE_BASE}/work/work-img-2.jpg`}
+              >
+                <source src={`${AWAKE_BASE}/videos/snippet-2.mp4`} type="video/mp4" />
+              </video>
+              <p>{t("landing.videoSnippet2")}</p>
+            </article>
+            <article className="landing-video-card">
+              <video
+                className="landing-video-el"
+                controls
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster={`${AWAKE_BASE}/work/work-img-3.jpg`}
+              >
+                <source src={`${AWAKE_BASE}/videos/snippet-3.mp4`} type="video/mp4" />
+              </video>
+              <p>{t("landing.videoSnippet3")}</p>
+            </article>
           </div>
         </div>
       </section>
 
       {/* Services – Where innovation meets aesthetics + cards + CTA bar */}
-      <section className="landing-section" id="services">
+      <section className="landing-section landing-reveal" id="services">
         <div className="landing-section-inner">
           <h2 className="landing-title-center">
-            {t("landing.servicesTitle")}
+            {servicesTitle.pre} <em className="font-instrument">{servicesTitle.em}</em> {servicesTitle.post}
           </h2>
+          <div className="landing-work-grid" style={{ marginBottom: "2rem" }}>
+            {workItems.slice(0, 4).map(({ img, title, tags }) => (
+              <div key={`services-${title}`} className="landing-work-card landing-reveal">
+                <div className="landing-work-img">
+                  <img src={img} alt={title} />
+                </div>
+                <div>
+                  <span className="landing-work-title">{title}</span>
+                  <div className="landing-work-badges">
+                    {tags.map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
           <div className="landing-cards">
             {services.map(({ icon: Icon, title, class: c }) => (
-              <div key={title} className={`landing-card ${c}`}>
+              <div key={title} className={`landing-card ${c} landing-reveal`}>
                 <Icon className="w-10 h-10" style={{ width: 40, height: 40 }} aria-hidden />
                 <h4>{title}</h4>
               </div>
@@ -135,7 +239,7 @@ export default function Landing() {
                 {t("landing.startNow")}
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
-              <Link to="/catalog/all" className="landing-btn-outline-light">
+              <Link to="/catalog" className="landing-btn-outline-light">
                 {t("landing.viewCatalog")}
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
@@ -145,14 +249,14 @@ export default function Landing() {
       </section>
 
       {/* Work */}
-      <section className="landing-section" id="work">
+      <section className="landing-section landing-reveal" id="work">
         <div className="landing-section-inner">
           <h2 className="landing-title-center">
-            {t("landing.workTitle")}
+            {workTitle.pre} <em className="font-instrument">{workTitle.em}</em> {workTitle.post}
           </h2>
           <div className="landing-work-grid">
             {workItems.map(({ img, title, tags }) => (
-              <div key={title} className="landing-work-card">
+              <div key={title} className="landing-work-card landing-reveal">
                 <div className="landing-work-img">
                   <img src={img} alt={title} />
                 </div>
@@ -170,26 +274,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Team */}
-      <section className="landing-section" id="team">
-        <div className="landing-section-inner">
-          <h2 className="landing-title-center">
-            {t("landing.teamTitle")}
-          </h2>
-          <div className="landing-team-grid">
-            {team.map(({ img, name, role }) => (
-              <div key={name} className="landing-team-card">
-                <img src={img} alt={name} />
-                <h6>{name}</h6>
-                <p>{role}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Testimonial – tek blok */}
-      <section className="landing-section landing-section-alt">
+      <section className="landing-section landing-section-alt landing-reveal">
         <div className="landing-section-inner">
           <h2 className="landing-title-center">{t("landing.testimonialTitle")}</h2>
           <div className="landing-quote-card" style={{ maxWidth: 640, margin: "0 auto" }}>
@@ -208,12 +294,12 @@ export default function Landing() {
       </section>
 
       {/* FAQ */}
-      <section className="landing-section landing-section-alt" id="faq">
+      <section className="landing-section landing-section-alt landing-reveal" id="faq">
         <div className="landing-section-inner">
           <h2 className="landing-title-center">{t("landing.faqTitle")}</h2>
           <div className="landing-faq">
             {FAQ_ITEMS.map(({ q, a }) => (
-              <details key={q} className="landing-faq-item">
+              <details key={q} className="landing-faq-item landing-reveal">
                 <summary className="landing-faq-q">{q}</summary>
                 <p className="landing-faq-a">{a}</p>
               </details>
@@ -223,7 +309,7 @@ export default function Landing() {
       </section>
 
       {/* Pricing CTA */}
-      <section className="landing-section" id="pricing">
+      <section className="landing-section landing-reveal" id="pricing">
         <div className="landing-section-inner">
           <h2 className="landing-title-center">{t("landing.pricingCtaTitle")}</h2>
           <p className="landing-muted landing-text-center landing-mt-4" style={{ maxWidth: 480, margin: "0 auto 2rem" }}>
@@ -239,8 +325,11 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="landing-footer">
+      <footer className="landing-footer landing-reveal">
         <div className="landing-footer-inner">
+          <div className="landing-footer-logo-wrap">
+            <Logo asLink={true} className="landing-footer-logo" />
+          </div>
           <div className="landing-footer-grid">
             <div>
               <h3>{t("landing.footerReady")}</h3>

@@ -6,30 +6,58 @@ import { SignedImage } from "@/components/ui/signed-image";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { toPublicCategorySlug } from "@/lib/productUrls";
 
 type DbCategory = {
   id: string;
   name: string;
   slug: string;
+  parent_category_id: string | null;
+  parent_slug?: string | null;
   cover_image_url: string | null;
   sort_order: number;
 };
 
 export default function NewcatalogCollectionAll() {
-  usePageMeta({ title: "All Products" });
+  const { t } = useI18n();
+  const categoryLabelBySlug = (slug: string, fallbackName: string) => {
+    const key = `catalog.category.${slug.toLowerCase()}`;
+    const translated = t(key);
+    return translated === key ? fallbackName : translated;
+  };
+
+  usePageMeta({ title: t("catalog.allProducts") });
 
   const { data: subcategories = [] } = useQuery({
     queryKey: ["public", "categories", "subcategories-only"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
-        .select("id,name,slug,cover_image_url,sort_order")
+        .select("id,name,slug,parent_category_id,cover_image_url,sort_order")
         .eq("is_active", true)
         .not("parent_category_id", "is", null)
         .order("sort_order", { ascending: true })
         .limit(500);
       if (error) throw error;
-      return (data ?? []) as DbCategory[];
+
+      const subcategories = (data ?? []) as DbCategory[];
+      const parentIds = Array.from(
+        new Set(subcategories.map((c) => c.parent_category_id).filter((id): id is string => Boolean(id)))
+      );
+      if (parentIds.length === 0) return subcategories;
+
+      const { data: parents, error: parentsError } = await supabase
+        .from("categories")
+        .select("id,slug")
+        .in("id", parentIds);
+      if (parentsError) throw parentsError;
+
+      const parentSlugById = new Map((parents ?? []).map((p) => [String((p as any).id), String((p as any).slug)]));
+      return subcategories.map((c) => ({
+        ...c,
+        parent_slug: c.parent_category_id ? parentSlugById.get(c.parent_category_id) ?? null : null,
+      }));
     },
     staleTime: 1000 * 60 * 5,
   });
@@ -40,7 +68,7 @@ export default function NewcatalogCollectionAll() {
       const { data, error } = await supabase
         .from("products")
         .select(
-          `id,name,slug,cover_image_url,thumbnail_url,price_from,badge,product_code,sort_order,category_id,category,
+          `id,name,slug,cover_image_url,thumbnail_url,price_from,currency,badge,product_code,sort_order,category_id,category,
           product_color_variants ( product_colors ( id, name, hex_code, sort_order ) ),
           product_size_variants ( product_sizes ( id, name, sort_order ) ),
           product_attributes ( data ),
@@ -57,23 +85,27 @@ export default function NewcatalogCollectionAll() {
   });
 
   return (
-    <NewcatalogChrome activeCategory="All">
+    <NewcatalogChrome activeCategory={t("catalog.allProductsShort")}>
       <div className="ru-max">
-        <section className="ts-collection-hero" aria-label="All products">
-          <h1 className="ts-collection-title">All Products</h1>
+        <section className="ts-collection-hero" aria-label={t("catalog.allProducts")}>
+          <h1 className="ts-collection-title">{t("catalog.allProducts")}</h1>
           <p className="ts-collection-subtitle">
-            Customize high-quality garments and have your creations shipped directly to you or your customers.
+            {t("catalog.allProductsSubtitle")}
           </p>
 
           {subcategories.length > 0 ? (
-            <div className="ts-collection-grid" role="list" aria-label="Subcategories">
+            <div className="ts-collection-grid" role="list" aria-label={t("catalog.subcategories")}>
               {subcategories.map((c) => (
                 <Link
                   key={c.id}
-                  to={`/collection/${c.slug}`}
+                  to={
+                    c.parent_slug
+                      ? `/${toPublicCategorySlug(c.parent_slug)}/${toPublicCategorySlug(c.slug)}`
+                      : `/${toPublicCategorySlug(c.slug)}`
+                  }
                   className="ts-collection-card"
                   role="listitem"
-                  aria-label={`Open ${c.name}`}
+                  aria-label={t("catalog.openCategory", { name: categoryLabelBySlug(c.slug, c.name) })}
                 >
                   <div className="ts-collection-card-inner" aria-hidden>
                     {c.cover_image_url ? (
@@ -82,7 +114,7 @@ export default function NewcatalogCollectionAll() {
                       <div className="ts-cat-icon" aria-hidden />
                     )}
                   </div>
-                  <div className="ts-collection-card-label">{c.name}</div>
+                  <div className="ts-collection-card-label">{categoryLabelBySlug(c.slug, c.name)}</div>
                 </Link>
               ))}
             </div>
@@ -93,11 +125,11 @@ export default function NewcatalogCollectionAll() {
           <div className="mt-4">
             {productsLoading ? (
               <div className="ts-container">
-                <p className="text-muted-foreground">Loading…</p>
+                <p className="text-muted-foreground">{t("common.loading")}</p>
               </div>
             ) : products.length === 0 ? (
               <div className="ts-container">
-                <p className="text-muted-foreground">No active products yet.</p>
+                <p className="text-muted-foreground">{t("catalog.noActiveProducts")}</p>
               </div>
             ) : (
               <CatalogProductGrid products={products as any} />

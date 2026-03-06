@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "@/lib/i18n/LocaleProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,10 +18,12 @@ function clampInt(v: string, fallback: number) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-/** Virgül veya nokta ile yazılmış ondalık sayıyı parse eder (örn. "3,8" -> 3.8). */
+/** Virgül veya nokta ile yazılmış ondalık sayıyı, etrafındaki metni temizleyerek parse eder (örn. "3,8 USD" -> 3.8). */
 function parseDecimal(v: string): number {
   const normalized = String(v).trim().replace(",", ".");
-  return Number(normalized);
+  // Metin içindeki sayıyı ayıkla (para birimi, boşluk vb. karakterleri temizle)
+  const cleaned = normalized.replace(/[^\d.-]/g, "");
+  return Number.parseFloat(cleaned);
 }
 
 function clampNum(v: string, fallback: number) {
@@ -37,6 +40,7 @@ export function UnitPriceTiersEditor({
   onChange: (next: UnitPriceTierDraft[]) => void;
   currency?: string;
 }) {
+  const { t: tr } = useI18n();
   const items = [...(value ?? [])].sort((a, b) => a.sort_order - b.sort_order);
 
   const [minQtyLocal, setMinQtyLocal] = useState<Record<number, string>>({});
@@ -134,11 +138,11 @@ export function UnitPriceTiersEditor({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-medium">Unit Price tiers</p>
-          <p className="text-xs text-muted-foreground">Each row contains a range (min/max) and unit price.</p>
+          <p className="text-sm font-medium">{tr("admin.productEdit.unitPrice.tiersTitle")}</p>
+          <p className="text-xs text-muted-foreground">{tr("admin.productEdit.unitPrice.tiersHint")}</p>
         </div>
         <Button type="button" variant="outline" onClick={add}>
-          Add tier
+          {tr("admin.productEdit.unitPrice.addTier")}
         </Button>
       </div>
 
@@ -147,7 +151,7 @@ export function UnitPriceTiersEditor({
           <div key={t.id ?? `${t.sort_order}-${idx}`} className="rounded-md border p-3">
             <div className="grid gap-3 md:grid-cols-12 md:items-end">
               <div className="md:col-span-3 space-y-2">
-                <Label>Min qty</Label>
+                <Label>{tr("admin.productEdit.unitPrice.minQty")}</Label>
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -162,12 +166,12 @@ export function UnitPriceTiersEditor({
               </div>
 
               <div className="md:col-span-3 space-y-2">
-                <Label>Max qty (optional)</Label>
+                <Label>{tr("admin.productEdit.unitPrice.maxQtyOptional")}</Label>
                 <Input
                   type="text"
                   inputMode="numeric"
                   value={getMaxQtyDisplay(idx, t)}
-                  placeholder="(blank = ≥ min)"
+                  placeholder={tr("admin.productEdit.unitPrice.blankMin")}
                   onChange={(e) => {
                     const raw = e.target.value;
                     setMaxQtyLocal((prev) => ({ ...prev, [idx]: raw }));
@@ -180,7 +184,7 @@ export function UnitPriceTiersEditor({
               </div>
 
               <div className="md:col-span-6 space-y-2">
-                <Label>Unit price ({t.currency})</Label>
+                <Label>{tr("admin.productEdit.unitPrice.unitPriceCurrency", { currency: t.currency })}</Label>
                 <Input
                   type="text"
                   inputMode="decimal"
@@ -196,9 +200,11 @@ export function UnitPriceTiersEditor({
             </div>
 
             <div className="mt-3 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">UI etiketi: {t.max_qty == null ? `≥ ${t.min_qty}` : `${t.min_qty}-${t.max_qty}`}</p>
+              <p className="text-xs text-muted-foreground">
+                {tr("admin.productEdit.unitPrice.uiLabel", { label: t.max_qty == null ? `≥ ${t.min_qty}` : `${t.min_qty}-${t.max_qty}` })}
+              </p>
               <Button type="button" variant="destructive" onClick={() => remove(idx)}>
-                Remove
+                {tr("admin.productEdit.unitPrice.remove")}
               </Button>
             </div>
           </div>
@@ -206,7 +212,7 @@ export function UnitPriceTiersEditor({
 
         {items.length === 0 ? (
           <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-            No tiers yet. Add one with "Add tier".
+            {tr("admin.productEdit.unitPrice.noTiersYet")}
           </div>
         ) : null}
       </div>

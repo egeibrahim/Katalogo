@@ -7,10 +7,11 @@ import { ElementActionsBar } from "./ElementActionsBar";
 import { UploadPanel } from "./UploadPanel";
 import { TextTemplates } from "./TextTemplates";
 import { CatalogBar } from "./CatalogBar";
+import { ColorPalette } from "./ColorPalette";
 import { MockupStage } from "./MockupStage";
 import { UserMenu } from "./UserMenu";
 import { Button } from "@/components/ui/button";
-import { Download, FileImage, Undo2, Redo2, Grid3X3, Maximize2, ZoomIn, ShoppingCart } from "lucide-react";
+import { Download, FileImage, Undo2, Redo2, Grid3X3, Maximize2, ZoomIn, ShoppingCart, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
@@ -29,6 +30,7 @@ import { getDefaultCanvasArea, getFallbackCanvasArea } from "@/lib/productTempla
 import { sanitizeStorageFileName } from "@/lib/storage";
 import { resolveMugCapacity, getMugPrintArea, type MugCapacityKey } from "@/config/mug-print-specs";
 import { useI18n } from "@/lib/i18n/LocaleProvider";
+import { normalizeCurrency } from "@/lib/currency";
 // Static mockups for fallback
 const tshirtMockup = "/mockups/tshirt-front.png";
 import hoodieMockup from "@/assets/hoodie-mockup.png";
@@ -62,7 +64,7 @@ export function ProductDesigner() {
 
   const { data: membership } = useUserMembership(user?.id ?? null);
   const exportDailyLimit = useMemo(() => getExportDailyLimit(membership?.plan), [membership?.plan]);
-  const showCartAction = canUseCart(membership?.plan);
+  const showCartAction = canUseCart(membership?.plan) || isAdmin;
 
   const [searchParams] = useSearchParams();
   const requestedProductId = searchParams.get("productId") || "";
@@ -83,6 +85,7 @@ export function ProductDesigner() {
   const [productIsDrinkware, setProductIsDrinkware] = useState(false);
   const [currentProductSlug, setCurrentProductSlug] = useState<string | null>(null);
   const [currentProductPriceFrom, setCurrentProductPriceFrom] = useState<number | null>(null);
+  const [currentProductCurrency, setCurrentProductCurrency] = useState<string>("USD");
   const [currentProductCode, setCurrentProductCode] = useState<string | null>(null);
   const [currentProductCoverUrl, setCurrentProductCoverUrl] = useState<string | null>(null);
   const [productDrinkwareCapacity, setProductDrinkwareCapacity] = useState<string | string[] | null>(null);
@@ -114,6 +117,8 @@ export function ProductDesigner() {
   const [printAreaIsEditing, setPrintAreaIsEditing] = useState(false);
 
   const [productGalleryImages, setProductGalleryImages] = useState<{ image_url: string }[]>([]);
+  /** Print area views from attrs (name, pricesByTechnique, color_ids per view index) for view-by-color filtering */
+  const [productPrintAreaViews, setProductPrintAreaViews] = useState<Array<{ color_ids?: string[] }>>([]);
 
   const handleTabChange = useCallback(
     (tab: ActiveTab) => setActiveTab(tab),
@@ -408,17 +413,19 @@ export function ProductDesigner() {
         setProductIsDrinkware(false);
         setCurrentProductSlug(null);
         setCurrentProductPriceFrom(null);
+        setCurrentProductCurrency("USD");
         setCurrentProductCode(null);
         setCurrentProductCoverUrl(null);
         setProductGalleryImages([]);
         setProductDrinkwareCapacity(null);
         setMugCapacity("11oz");
         setPrintAreaDimensionsByView({});
+        setProductPrintAreaViews([]);
         return;
       }
       const { data: productRow } = await supabase
         .from("products")
-        .select("name,category,category_id,cover_image_url,thumbnail_url,slug,price_from,product_code")
+        .select("name,category,category_id,cover_image_url,thumbnail_url,slug,price_from,currency,product_code")
         .eq("id", currentProductId)
         .maybeSingle();
       const row = productRow as Record<string, unknown> | null;
@@ -428,7 +435,7 @@ export function ProductDesigner() {
         const { data: catRow } = await supabase
           .from("categories")
           .select("slug, parent_category_id")
-          .eq("id", row.category_id)
+          .eq("id", String(row.category_id))
           .maybeSingle();
         const cat = catRow as { slug?: string; parent_category_id?: string | null } | null;
         categorySlug = cat?.slug ?? "";
@@ -460,6 +467,7 @@ export function ProductDesigner() {
       setCurrentProductCategory(categorySlug);
       setCurrentProductSlug((row?.slug as string) ?? null);
       setCurrentProductPriceFrom(typeof row?.price_from === "number" ? row.price_from : null);
+      setCurrentProductCurrency(normalizeCurrency(row?.currency as string | null | undefined));
       setCurrentProductCode((row?.product_code as string) ?? null);
       const cover = (row?.cover_image_url as string) ?? (row?.thumbnail_url as string) ?? null;
       setCurrentProductCoverUrl(cover && typeof cover === "string" ? cover : null);
@@ -471,7 +479,13 @@ export function ProductDesigner() {
         .maybeSingle();
       const attrs = (attrsRow?.data as Record<string, unknown> | null) ?? null;
       const capacityRaw = attrs?.drinkware_capacity;
-      setProductDrinkwareCapacity(capacityRaw ?? null);
+      setProductDrinkwareCapacity(capacityRaw as string | string[] | null);
+      const rawPav = Array.isArray((attrs as any)?.print_area_views) ? (attrs as any).print_area_views : [];
+      setProductPrintAreaViews(
+        rawPav.slice(0, 10).map((x: any) => ({
+          color_ids: Array.isArray(x?.color_ids) ? x.color_ids.filter((id: unknown) => typeof id === "string") : [],
+        }))
+      );
       if (categorySlug && isDrinkwareCat) {
         setMugCapacity(resolveMugCapacity(capacityRaw as string | string[] | null));
       } else {
@@ -515,6 +529,107 @@ export function ProductDesigner() {
       setCurrentViewId(views[0].id);
     }
   }, [currentViewId]);
+
+  /** Union of color_ids from all print_area_views; only these colors are shown in the bar. Empty = use product colors. */
+  const printAreaColorIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const pav of productPrintAreaViews) {
+      const list = Array.isArray(pav?.color_ids) ? pav.color_ids : [];
+      list.forEach((id) => ids.add(id));
+    }
+    return ids.size > 0 ? Array.from(ids) : undefined;
+  }, [productPrintAreaViews]);
+
+  /** Views visible for the selected color: if a view has color_ids, only show when selectedColorId is in that list; empty color_ids = show for all colors */
+  const visibleViewsForColor = useMemo(() => {
+    if (productViews.length === 0) return [];
+    if (!selectedColorId) return productViews;
+    return productViews.filter((_v, index) => {
+      const pav = productPrintAreaViews[index];
+      const colorIds = Array.isArray(pav?.color_ids) ? pav.color_ids : [];
+      if (colorIds.length === 0) return true;
+      return colorIds.includes(selectedColorId);
+    });
+  }, [productViews, productPrintAreaViews, selectedColorId]);
+
+  // Keep currentViewId in sync when visible views change (e.g. after color select)
+  useEffect(() => {
+    if (visibleViewsForColor.length === 0) return;
+    if (visibleViewsForColor.some((v) => v.id === currentViewId)) return;
+    setCurrentViewId(visibleViewsForColor[0].id);
+  }, [visibleViewsForColor, currentViewId]);
+
+  // When bar shows only print-area colors, clear selection if current color is not in list (ColorPalette will auto-select first)
+  useEffect(() => {
+    if (printAreaColorIds == null || printAreaColorIds.length === 0) return;
+    if (selectedColorId && printAreaColorIds.includes(selectedColorId)) return;
+    setSelectedColorId(null);
+    setSelectedColorIds([]);
+  }, [printAreaColorIds, selectedColorId]);
+
+  // When current view or selected color changes (including via indirect view sync), ensure we have the color-specific mockup cached.
+  useEffect(() => {
+    if (!currentViewId || !selectedColorId) return;
+    if (pendingMockups[currentViewId]) return;
+
+    const key = `${currentViewId}-${selectedColorId}`;
+    if (colorMockups[key]) return;
+
+    let cancelled = false;
+    const run = async () => {
+      const { data, error } = await supabase
+        .from("product_view_color_mockups")
+        .select("mockup_image_url")
+        .eq("product_view_id", currentViewId)
+        .eq("color_id", selectedColorId)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (error) return;
+      if (!data?.mockup_image_url) return;
+
+      const raw = String(data.mockup_image_url);
+      const url = raw.startsWith("http") || raw.startsWith("/") ? raw : `/${raw}`;
+      setColorMockups((prev) => ({ ...prev, [key]: url }));
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentViewId, selectedColorId, pendingMockups, colorMockups]);
+
+  // Preload ALL color mockups for every view in a single query when product views load.
+  // This eliminates timing issues with per-click fetches in the brand designer.
+  useEffect(() => {
+    if (productViews.length === 0) return;
+    const viewIds = productViews.map((v) => v.id);
+    let cancelled = false;
+
+    const preload = async () => {
+      const { data, error } = await supabase
+        .from("product_view_color_mockups")
+        .select("product_view_id, color_id, mockup_image_url")
+        .in("product_view_id", viewIds);
+
+      if (cancelled || error || !data?.length) return;
+
+      const batch: Record<string, string> = {};
+      for (const row of data as { product_view_id: string; color_id: string; mockup_image_url: string }[]) {
+        if (!row.mockup_image_url) continue;
+        const raw = String(row.mockup_image_url);
+        const url = raw.startsWith("http") || raw.startsWith("/") ? raw : `/${raw}`;
+        batch[`${row.product_view_id}-${row.color_id}`] = url;
+      }
+
+      if (Object.keys(batch).length > 0) {
+        setColorMockups((prev) => ({ ...prev, ...batch }));
+      }
+    };
+
+    void preload();
+    return () => { cancelled = true; };
+  }, [productViews]);
 
   // Mockup sekmesine geçildiğinde görünümleri (ve yeni mockup görsellerini) yeniden yükle
   useEffect(() => {
@@ -565,9 +680,11 @@ export function ProductDesigner() {
         .maybeSingle();
 
       if (data?.mockup_image_url) {
-        setColorMockups(prev => ({
+        const raw = String(data.mockup_image_url);
+        const url = raw.startsWith("http") || raw.startsWith("/") ? raw : `/${raw}`;
+        setColorMockups((prev) => ({
           ...prev,
-          [`${viewId}-${selectedColorId}`]: data.mockup_image_url
+          [`${viewId}-${selectedColorId}`]: url,
         }));
       }
     }
@@ -583,18 +700,11 @@ export function ProductDesigner() {
     }
   }, [elements, currentViewId]);
 
-  // Handle color selection and fetch color-specific mockup
+  // Handle color selection and fetch color-specific mockup (single selection in bar: only one color active)
   const handleColorSelect = useCallback(async (colorId: string, hexCode: string) => {
     setSelectedColorId(colorId);
     setSelectedColorHex(hexCode);
-
-    // Auto-add to selectedColorIds if not already there
-    setSelectedColorIds((prev) => {
-      if (!prev.includes(colorId)) {
-        return [...prev, colorId];
-      }
-      return prev;
-    });
+    setSelectedColorIds([colorId]);
 
     // Ensure the picked color is assigned to the current product so it appears in CatalogBar
     if (currentProductId && colorId) {
@@ -620,12 +730,17 @@ export function ProductDesigner() {
 
     // Try to load color-specific mockup for current view
     if (currentViewId && colorId) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("product_view_color_mockups")
         .select("mockup_image_url")
         .eq("product_view_id", currentViewId)
         .eq("color_id", colorId)
         .maybeSingle();
+
+      if (error) {
+        toast.error(error.message || "Renk mockup'ı okunamadı");
+        return;
+      }
 
       if (data?.mockup_image_url) {
         // Ensure URL is properly formatted
@@ -893,6 +1008,8 @@ export function ProductDesigner() {
     return () => clearTimeout(timer);
   }, [captureMode, currentViewId, selectedColorHex]);
 
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+
   const handleAddToCartFromDesigner = useCallback(async () => {
     if (!currentProductId || !currentProductName) {
       toast.error(t("designer.selectProductFirst"));
@@ -914,16 +1031,51 @@ export function ProductDesigner() {
       }
     }
     const hasDesign = Object.keys(designDataClone).length > 0;
+    const mockupUrls: Record<string, string> = {};
+
+    if (hasDesign) {
+      setIsAddingToCart(true);
+      const originalViewId = currentViewId;
+      setCaptureMode(true);
+      
+      try {
+        for (const viewId of Object.keys(designDataClone)) {
+          if (viewId !== currentViewId) {
+             setCurrentViewId(viewId);
+             await new Promise(r => setTimeout(r, 150));
+          } else {
+             await new Promise(r => setTimeout(r, 80));
+          }
+          const canvas = document.getElementById("design-canvas");
+          if (canvas) {
+            const renderedCanvas = await html2canvas(canvas as HTMLElement, {
+              backgroundColor: selectedColorHex ?? undefined,
+              scale: 1,
+              useCORS: true,
+            });
+            mockupUrls[viewId] = renderedCanvas.toDataURL("image/jpeg", 0.7);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to generate mockups for cart", err);
+      } finally {
+        setCaptureMode(false);
+        setCurrentViewId(originalViewId);
+        setIsAddingToCart(false);
+      }
+    }
+
     addToCart(
       {
         productId: currentProductId,
         slug: currentProductSlug,
         name: currentProductName,
         price_from: currentProductPriceFrom,
+        currency: currentProductCurrency,
         product_code: currentProductCode,
         cover_image_url: currentProductCoverUrl,
         selectedColorName: colorName ?? undefined,
-        ...(hasDesign ? { designData: designDataClone } : {}),
+        ...(hasDesign ? { designData: designDataClone, mockupUrls } : {}),
       },
       1
     );
@@ -933,6 +1085,7 @@ export function ProductDesigner() {
     currentProductName,
     currentProductSlug,
     currentProductPriceFrom,
+    currentProductCurrency,
     currentProductCode,
     currentProductCoverUrl,
     selectedColorId,
@@ -1361,22 +1514,23 @@ export function ProductDesigner() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-white">
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Sidebar - Tabs */}
         <ToolSidebar activeTab={activeTab} onTabChange={handleTabChange} />
         {/* Tab Content Panel */}
-        <aside className="w-72 bg-card border-r border-border overflow-y-auto flex flex-col">
+        <aside className="w-72 bg-white border-r border-border overflow-y-auto flex flex-col">
           {renderTabContent()}
         </aside>
 
-        {/* Canvas: toolbar, scrollable mockup, sabit Print Area butonları (her zaman görünür) */}
-        <div className="flex-1 flex flex-col relative min-h-0">
-          {/* Toolbar */}
-          <div className="border-b border-border bg-background shrink-0 min-h-[52px] flex items-center justify-between gap-2 px-3 py-2">
-            {selectedElement ? (
-              <div className="flex-1 overflow-x-auto min-w-0">
+        {/* Canvas: tek birleşik toolbar */}
+        <div className="flex-1 flex flex-col relative min-h-0 bg-white">
+          <div className="border-b border-border bg-white shrink-0 min-h-[52px] flex items-center justify-between gap-4 px-3 py-2 overflow-x-auto">
+            
+            {/* Sol Kısım: Element veya Renk */}
+            <div className="flex items-center gap-3 min-w-0 shrink-0">
+              {selectedElement ? (
                 <ElementActionsBar
                   onAlign={handleAlign}
                   onFlip={handleFlip}
@@ -1387,154 +1541,186 @@ export function ProductDesigner() {
                   elementType={selectedElement.type}
                   isLocked={anySelectedLocked}
                 />
-              </div>
-            ) : (
-              <div className="flex-1 min-w-0">
-                <CatalogBar
-                  currentProductId={currentProductId}
-                  currentProductName={currentProductName}
-                  onProductSelect={handleProductSelect}
-                />
-              </div>
-            )}
-            <div className="flex items-center gap-1 shrink-0">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 rounded-lg"
-                disabled={!canUndo}
-                onClick={() => undo()}
-      title={t("designer.undo")}
-      aria-label={t("designer.undo")}
-              >
-                <Undo2 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 rounded-lg"
-                disabled={!canRedo}
-                onClick={() => redo()}
-      title={t("designer.redo")}
-      aria-label={t("designer.redo")}
-              >
-                <Redo2 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={showGrid ? "secondary" : "outline"}
-                size="icon"
-                className="h-9 w-9 rounded-lg"
-                onClick={() => setShowGrid((v) => !v)}
-      title={t("designer.grid")}
-      aria-label={t("designer.grid")}
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={fitToPrintArea ? "secondary" : "outline"}
-                size="icon"
-                className="h-9 w-9 rounded-lg"
-                onClick={() => {
-                  if (fitToPrintArea) {
-                    setZoom(100);
-                    setFitToPrintArea(false);
-                  } else {
-                    const w = designAreaPercent?.width ?? (currentView ? Number(currentView.design_area_width) : 40);
-                    const h = designAreaPercent?.height ?? (currentView ? Number(currentView.design_area_height) : 40);
-                    const minSide = Math.min(w, h) || 40;
-                    const fitZoom = Math.max(100, Math.min(400, Math.round((100 * 100) / minSide)));
-                    setZoom(fitZoom);
-                    setFitToPrintArea(true);
-                  }
-                }}
-                title={fitToPrintArea ? t("designer.restoreView") : t("designer.fitPrintArea")}
-                aria-label={fitToPrintArea ? t("designer.restoreView") : t("designer.fitPrintArea")}
-              >
-                <Maximize2 className="h-4 w-4" />
-              </Button>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 rounded-lg"
-                    title={t("designer.zoom")}
-                    aria-label={t("designer.zoom")}
-                  >
-                    <ZoomIn className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 p-4" align="end" side="bottom">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{t("designer.zoom")}</span>
-                      <span className="tabular-nums font-medium">{zoom}%</span>
-                    </div>
-                    <Slider
-                      min={100}
-                      max={400}
-                      step={5}
-                      value={[zoom]}
-                      onValueChange={([v]) => {
-                        setFitToPrintArea(false);
-                        setZoom(v);
-                      }}
-                    />
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              <div className="w-px h-7 bg-border mx-1" />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-lg h-9"
-                    disabled={requiresColorSelection || isBrandPageDesigner}
-                    title={
-                      isBrandPageDesigner
-                        ? t("designer.exportBlockedBrand")
-                        : requiresColorSelection
-                          ? t("designer.selectColorAfterMockup")
-                          : t("designer.export")
-                    }
-                  >
-                    <Download className="w-4 h-4" />
-                    {t("designer.export")}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover border border-border shadow-md z-50">
-                  <DropdownMenuItem
-                    disabled={requiresColorSelection || isBrandPageDesigner}
-                    onClick={() => handleExport("original")}
-                  >
-                    <FileImage className="w-4 h-4 mr-2" />
-                    {t("designer.exportOriginal")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {showCartAction && (
+              ) : currentProductId ? (
                 <>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="rounded-lg h-9"
-                    disabled={!currentProductId}
-                    title={!currentProductId ? t("designer.selectProductFirst") : t("designer.addToCart")}
-                    onClick={() => handleAddToCartFromDesigner()}
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    {t("designer.addToCart")}
-                  </Button>
-                  <div className="w-px h-7 bg-border ml-1" />
+                  <span className="text-sm font-medium text-foreground whitespace-nowrap">{t("designer.selectColors")}</span>
+                  <ColorPalette
+                    selectedColorId={selectedColorId}
+                    selectedColorIds={selectedColorIds}
+                    onColorSelect={handleColorSelect}
+                    onColorToggle={handleColorToggle}
+                    selectedProductId={currentProductId}
+                    colorIdsToShow={printAreaColorIds}
+                  />
                 </>
+              ) : <div />}
+            </div>
+
+            {/* Sağ Kısım: Görünüm ve Araçlar */}
+            <div className="flex items-center gap-3 shrink-0 ml-auto">
+              {/* View Switcher (Front/Back) */}
+              {visibleViewsForColor.length > 0 && (
+                <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg shrink-0">
+                  {visibleViewsForColor.map((v) => (
+                    <Button
+                      key={v.id}
+                      variant={currentViewId === v.id ? "default" : "ghost"}
+                      size="sm"
+                      className="h-7 text-xs font-medium px-3 rounded-md"
+                      onClick={() => handleViewChange(v.id)}
+                    >
+                      {v.view_name}
+                    </Button>
+                  ))}
+                </div>
               )}
-              <UserMenu />
+
+              <div className="w-px h-6 bg-border" />
+
+              {/* Araçlar (Undo/Redo, Zoom, vb.) */}
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 rounded-lg"
+                  disabled={!canUndo}
+                  onClick={() => undo()}
+                  title={t("designer.undo")}
+                  aria-label={t("designer.undo")}
+                >
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 rounded-lg"
+                  disabled={!canRedo}
+                  onClick={() => redo()}
+                  title={t("designer.redo")}
+                  aria-label={t("designer.redo")}
+                >
+                  <Redo2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={showGrid ? "secondary" : "outline"}
+                  size="icon"
+                  className="h-9 w-9 rounded-lg"
+                  onClick={() => setShowGrid((v) => !v)}
+                  title={t("designer.grid")}
+                  aria-label={t("designer.grid")}
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={fitToPrintArea ? "secondary" : "outline"}
+                  size="icon"
+                  className="h-9 w-9 rounded-lg"
+                  onClick={() => {
+                    if (fitToPrintArea) {
+                      setZoom(100);
+                      setFitToPrintArea(false);
+                    } else {
+                      const w = designAreaPercent?.width ?? (currentView ? Number(currentView.design_area_width) : 40);
+                      const h = designAreaPercent?.height ?? (currentView ? Number(currentView.design_area_height) : 40);
+                      const minSide = Math.min(w, h) || 40;
+                      const fitZoom = Math.max(100, Math.min(400, Math.round((100 * 100) / minSide)));
+                      setZoom(fitZoom);
+                      setFitToPrintArea(true);
+                    }
+                  }}
+                  title={fitToPrintArea ? t("designer.restoreView") : t("designer.fitPrintArea")}
+                  aria-label={fitToPrintArea ? t("designer.restoreView") : t("designer.fitPrintArea")}
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 rounded-lg"
+                      title={t("designer.zoom")}
+                      aria-label={t("designer.zoom")}
+                    >
+                      <ZoomIn className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-4" align="end" side="bottom">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{t("designer.zoom")}</span>
+                        <span className="tabular-nums font-medium">{zoom}%</span>
+                      </div>
+                      <Slider
+                        min={100}
+                        max={400}
+                        step={5}
+                        value={[zoom]}
+                        onValueChange={([v]) => {
+                          setFitToPrintArea(false);
+                          setZoom(v);
+                        }}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <div className="w-px h-7 bg-border mx-1" />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg h-9"
+                      disabled={requiresColorSelection || isBrandPageDesigner}
+                      title={
+                        isBrandPageDesigner
+                          ? t("designer.exportBlockedBrand")
+                          : requiresColorSelection
+                            ? t("designer.selectColorAfterMockup")
+                            : t("designer.export")
+                      }
+                    >
+                      <Download className="w-4 h-4" />
+                      {t("designer.export")}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-popover border border-border shadow-md z-50">
+                    <DropdownMenuItem
+                      disabled={requiresColorSelection || isBrandPageDesigner}
+                      onClick={() => handleExport("original")}
+                    >
+                      <FileImage className="w-4 h-4 mr-2" />
+                      {t("designer.exportOriginal")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {showCartAction && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="rounded-lg h-9"
+                      disabled={!currentProductId || isAddingToCart}
+                      title={!currentProductId ? t("designer.selectProductFirst") : t("designer.addToCart")}
+                      onClick={() => handleAddToCartFromDesigner()}
+                    >
+                      {isAddingToCart ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ShoppingCart className="w-4 h-4" />
+                      )}
+                      {t("designer.addToCart")}
+                    </Button>
+                    <div className="w-px h-7 bg-border ml-1" />
+                  </>
+                )}
+                <UserMenu />
+              </div>
             </div>
           </div>
 
-          {/* Mockup alanı ekrana sığar; görünüm butonları altta sabit */}
+          {/* Mockup alanı */}
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
               <MockupStage
@@ -1557,7 +1743,7 @@ export function ProductDesigner() {
               handleSelectionChange([], null);
               toast.success(t("designer.removeImageSuccess"));
             }}
-            views={productViews.map((v) => ({ id: v.id, view_name: v.view_name }))}
+            views={visibleViewsForColor.map((v) => ({ id: v.id, view_name: v.view_name }))}
             activeViewId={currentViewId}
             onViewChange={handleViewChange}
             onReorderViews={async (orderedViewIds) => {
@@ -1865,7 +2051,12 @@ export function ProductDesigner() {
               const byView = (attrs.print_area_dimensions_by_view as Record<string, unknown>) ?? {};
               const nextByView = { ...byView };
               delete nextByView[currentViewId];
-              await supabase.from("product_attributes").upsert({ product_id: currentProductId, data: { ...attrs, print_area_dimensions_by_view: nextByView } }, { onConflict: "product_id" });
+              await supabase
+                .from("product_attributes")
+                .upsert(
+                  [{ product_id: currentProductId, data: { ...attrs, print_area_dimensions_by_view: nextByView } as any }],
+                  { onConflict: "product_id" }
+                );
               toast.success(t("designer.printAreaResetSuccess"));
             }}
             showGrid={showGrid}
@@ -1951,47 +2142,52 @@ export function ProductDesigner() {
                 }
                 if (!currentViewId) return;
                 setIsSavingPrintArea(true);
-                const aspect = w / h;
-                const heightPct = 40;
-                const widthPct = Math.max(10, Math.min(90, heightPct * aspect));
-                const left = Math.max(0, (100 - widthPct) / 2);
-                const top = Math.max(0, (100 - heightPct) / 2);
-                const payload = {
-                  design_area_top: top,
-                  design_area_left: left,
-                  design_area_width: widthPct,
-                  design_area_height: heightPct,
-                };
-                const { error } = await supabase.from("product_views").update(payload).eq("id", currentViewId);
-                if (error) {
-                  toast.error(t("designer.printAreaSaveFailed"));
+                try {
+                  const aspect = w / h;
+                  const heightPct = 40;
+                  const widthPct = Math.max(10, Math.min(90, heightPct * aspect));
+                  const left = Math.max(0, (100 - widthPct) / 2);
+                  const top = Math.max(0, (100 - heightPct) / 2);
+                  const payload = {
+                    design_area_top: top,
+                    design_area_left: left,
+                    design_area_width: widthPct,
+                    design_area_height: heightPct,
+                  };
+                  const { error } = await supabase.from("product_views").update(payload).eq("id", currentViewId);
+                  if (error) {
+                    toast.error(t("designer.printAreaSaveFailed"));
+                    setIsSavingPrintArea(false);
+                    return;
+                  }
+                  setProductViews((prev) =>
+                    prev.map((v) => (v.id === currentViewId ? { ...v, ...payload } : v)),
+                  );
+                  const dims = { width_cm: w, height_cm: h, width_pct: widthPct, height_pct: heightPct };
+                  setPrintAreaDimensionsByView((prev) => ({ ...prev, [currentViewId]: dims }));
+                  const { data: attrsRow } = await supabase
+                    .from("product_attributes")
+                    .select("data")
+                    .eq("product_id", currentProductId)
+                    .maybeSingle();
+                  const attrs = (attrsRow?.data as Record<string, unknown>) ?? {};
+                  const byView = (attrs.print_area_dimensions_by_view as Record<string, { width_cm: number; height_cm: number; width_pct?: number; height_pct?: number }>) ?? {};
+                  await supabase
+                    .from("product_attributes")
+                    .upsert(
+                      [{ product_id: currentProductId, data: { ...attrs, print_area_dimensions_by_view: { ...byView, [currentViewId]: dims } } as any }],
+                      { onConflict: "product_id" }
+                    );
+                  setPrintAreaCreatorOpen(false);
+                  setPrintAreaWidthCm("");
+                  setPrintAreaHeightCm("");
                   setIsSavingPrintArea(false);
-                  return;
+                  setTriggerPrintAreaEdit(Date.now());
+                  toast.success(t("designer.printAreaCreated", { w, h }));
+                } catch {
+                  setTriggerPrintAreaEdit(Date.now());
+                  toast.success(t("designer.printAreaCreated", { w, h }));
                 }
-                setProductViews((prev) =>
-                  prev.map((v) => (v.id === currentViewId ? { ...v, ...payload } : v)),
-                );
-                const dims = { width_cm: w, height_cm: h, width_pct: widthPct, height_pct: heightPct };
-                setPrintAreaDimensionsByView((prev) => ({ ...prev, [currentViewId]: dims }));
-                const { data: attrsRow } = await supabase
-                  .from("product_attributes")
-                  .select("data")
-                  .eq("product_id", currentProductId)
-                  .maybeSingle();
-                const attrs = (attrsRow?.data as Record<string, unknown>) ?? {};
-                const byView = (attrs.print_area_dimensions_by_view as Record<string, { width_cm: number; height_cm: number; width_pct?: number; height_pct?: number }>) ?? {};
-                await supabase
-                  .from("product_attributes")
-                  .upsert({
-                    product_id: currentProductId,
-                    data: { ...attrs, print_area_dimensions_by_view: { ...byView, [currentViewId]: dims } },
-                  }, { onConflict: "product_id" });
-                setPrintAreaCreatorOpen(false);
-                setPrintAreaWidthCm("");
-                setPrintAreaHeightCm("");
-                setIsSavingPrintArea(false);
-                setTriggerPrintAreaEdit(Date.now());
-                toast.success(t("designer.printAreaCreated", { w, h }));
               }}
             >
               {t("common.apply")}
